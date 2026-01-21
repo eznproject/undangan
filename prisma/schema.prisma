@@ -9,7 +9,7 @@ generator client {
 }
 
 datasource db {
-  provider = "sqlite"
+  provider = "postgresql"
   url      = env("DATABASE_URL")
 }
 
@@ -42,24 +42,24 @@ model Guest {
 }
 
 model EventGuest {
-  id           String      @id @default(cuid())
-  eventId      String
-  event        Event       @relation(fields: [eventId], references: [id], onDelete: Cascade)
-  guestId      String
-  guest        Guest       @relation(fields: [guestId], references: [id], onDelete: Cascade)
-  token        String      @unique
-  qrCode       String?
-  rsvpStatus   String      @default("pending")
-  createdAt    DateTime    @default(now())
-  attendance   Attendance?
+  id         String      @id @default(cuid())
+  eventId    String
+  event      Event       @relation(fields: [eventId], references: [id], onDelete: Cascade)
+  guestId    String
+  guest      Guest       @relation(fields: [guestId], references: [id], onDelete: Cascade)
+  token      String      @unique
+  qrCode     String?     @db.Text
+  rsvpStatus String      @default("pending")
+  createdAt  DateTime    @default(now())
+  attendance Attendance?
 
   @@unique([eventId, guestId])
 }
 
 model Attendance {
-  id            String     @id @default(cuid())
-  eventGuestId  String     @unique
-  eventGuest    EventGuest @relation(fields: [eventGuestId], references: [id], onDelete: Cascade)
-  checkinTime   DateTime   @default(now())
-  status        String     @default("checked_in")
+  id           String     @id @default(cuid())
+  eventGuestId String     @unique
+  eventGuest   EventGuest @relation(fields: [eventGuestId], references: [id], onDelete: Cascade)
+  checkinTime  DateTime   @default(now())
+  status       String     @default("checked_in")
 }
