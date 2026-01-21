@@ -439,6 +439,73 @@ export default function DashboardPage() {
     (guest.area && guest.area.toLowerCase().includes(searchQuery.toLowerCase()))
   )
 
+  const fetchEventHistory = async () => {
+    setLoadingHistory(true)
+    try {
+      const response = await fetch('/api/events')
+      const data = await response.json()
+      if (response.ok && data.events) {
+        const historyData: EventStats[] = []
+        for (const event of data.events) {
+          const eventResponse = await fetch(`/api/events/${event.id}`)
+          const eventData = await eventResponse.json()
+          if (eventResponse.ok) {
+            historyData.push(eventData)
+          }
+        }
+        setEventHistory(historyData)
+      }
+    } catch (error) {
+      toast.error('Gagal mengambil riwayat acara')
+    } finally {
+      setLoadingHistory(false)
+    }
+  }
+
+  const handleExportEventData = (eventStats: EventStats) => {
+    const csvContent = [
+      ['Nama', 'WhatsApp', 'Alamat', 'Area', 'Status RSVP', 'Status Kehadiran', 'Waktu Check-in'],
+      ...eventStats.eventGuests.map(eg => [
+        eg.guest.name,
+        eg.guest.whatsapp,
+        eg.guest.address || '',
+        eg.guest.area || '',
+        eg.rsvpStatus,
+        eg.attendance ? 'Hadir' : 'Belum',
+        eg.attendance ? new Date(eg.attendance.checkinTime).toLocaleString('id-ID') : '-',
+      ])
+    ].map(row => row.map(cell => `"${cell}"`).join(',')).join('\n')
+
+    const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' })
+    const link = document.createElement('a')
+    link.href = URL.createObjectURL(blob)
+    link.download = `event_${eventStats.event.title.replace(/\s+/g, '_')}_${eventStats.event.date}.csv`
+    link.click()
+    toast.success('Data acara berhasil diexport')
+  }
+
+  const handleDeleteEvent = async (eventId: string) => {
+    if (!confirm('Apakah Anda yakin ingin menghapus acara ini? Semua data tamu dan riwayat kehadiran akan dihapus permanen.')) return
+
+    try {
+      const response = await fetch(`/api/events/${eventId}`, {
+        method: 'DELETE',
+      })
+
+      if (response.ok) {
+        toast.success('Acara berhasil dihapus')
+        fetchEventHistory()
+        if (selectedEventId === eventId) {
+          setSelectedEventId('')
+        }
+      } else {
+        toast.error('Gagal menghapus acara')
+      }
+    } catch (error) {
+      toast.error('Gagal menghapus acara')
+    }
+  }
+
   return (
     <div className="min-h-screen bg-gradient-to-b from-neutral-50 to-neutral-100 dark:from-neutral-950 dark:to-neutral-900">
       <header className="border-b bg-white/50 dark:bg-neutral-950/50 backdrop-blur-sm">
@@ -587,7 +654,7 @@ export default function DashboardPage() {
           </TabsList>
 
           <TabsContent value="guests">
-            {activeTab === 'guests' && selectedEventId ? (
+            {activeTab === 'guests' && selectedEventId && (
               <>
                 <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-6">
                   <Card>
@@ -625,8 +692,7 @@ export default function DashboardPage() {
                           {eventGuests.length} tamu diundang ke acara ini
                         </CardDescription>
                       </div>
-                    </div>
-                    <div className="flex gap-2 flex-wrap">
+                      <div className="flex gap-2 flex-wrap">
                       <Dialog open={showAddGuest} onOpenChange={setShowAddGuest}>
                         <DialogTrigger asChild>
                           <Button>
@@ -732,7 +798,6 @@ Jane Smith,081234567891,Jl. Thamrin No. 2,Jakarta`}
                                   </div>
                                 </div>
                               </div>
-                            </div>
                             )}
                             <Button
                               onClick={handleBulkImport}
@@ -829,6 +894,7 @@ Jane Smith,081234567891,Jl. Thamrin No. 2,Jakarta`}
                       <Button variant="outline" onClick={() => { fetchEventGuests(); fetchStats(); fetchAllGuests(); }}>
                         <RefreshCw className="h-4 w-4" />
                       </Button>
+                    </div>
                     </div>
                   </CardHeader>
 
