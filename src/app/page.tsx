@@ -1,170 +1,141 @@
-'use client'
-
-import { useState, useEffect } from 'react'
-import { useRouter } from 'next/navigation'
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
-import { Button } from '@/components/ui/button'
-import { QrCode, ShieldCheck } from 'lucide-react'
+"use client";
+import { useState, useEffect } from "react";
+import { useRouter } from "next/navigation";
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle,
+} from "@/components/ui/card";
+import { Button } from "@/components/ui/button";
+import { QrCode, Scan, ShieldCheck, Sparkles } from "lucide-react";
 
 export default function Home() {
-  const router = useRouter()
-  const [isAuthenticated, setIsAuthenticated] = useState(false)
+  const router = useRouter();
+  const [isAuthenticated, setIsAuthenticated] = useState(false);
 
   useEffect(() => {
-    // Check if user is authenticated
-    const sessionToken = document.cookie.includes('session_token')
-    setIsAuthenticated(sessionToken)
-  }, [])
+    const sessionToken = document.cookie.includes("session_token");
+    setIsAuthenticated(sessionToken);
+  }, []);
 
   return (
-    <div className="min-h-screen bg-gradient-to-b from-green-50 to-white dark:from-neutral-950 dark:to-neutral-900">
+    <div className="min-h-screen bg-gradient-to-br from-emerald-50 via-teal-50 to-cyan-50">
+      {/* Decorative Elements */}
+      <div className="absolute inset-0 overflow-hidden pointer-events-none">
+        <div className="absolute top-20 left-10 w-72 h-72 bg-emerald-200/30 rounded-full blur-3xl" />
+        <div className="absolute bottom-20 right-10 w-96 h-96 bg-teal-200/30 rounded-full blur-3xl" />
+      </div>
+
       {/* Header */}
-      <header className="border-b bg-white/80 dark:bg-neutral-950/80 backdrop-blur-sm">
-        <div className="container mx-auto px-4 py-6">
-          <div className="flex items-center justify-center">
-            <div className="flex items-center gap-3">
-              <div className="w-14 h-14 rounded-full bg-gradient-to-br from-green-600 to-green-700 flex items-center justify-center shadow-lg">
-                <QrCode className="h-7 w-7 text-white" />
-              </div>
-              <div className="text-center">
-                <h1 className="text-2xl font-bold text-neutral-900 dark:text-neutral-50">
-                  Majelis Khirriji Al-Haromain
-                </h1>
-                <p className="text-sm text-green-700 dark:text-green-500 font-semibold">
-                  Riyadlul Jannah
-                </p>
-              </div>
+      <header className="relative border-b border-emerald-100 bg-white/80 backdrop-blur-sm shadow-sm">
+        <div className="container mx-auto px-4 py-4 flex justify-between items-center">
+          <div className="flex items-center gap-3">
+            <div className="w-12 h-12 bg-gradient-to-br from-emerald-500 to-teal-600 rounded-lg flex items-center justify-center shadow-lg">
+              <Sparkles className="w-7 h-7 text-white" />
+            </div>
+            <div>
+              <h1 className="text-xl font-bold text-emerald-900">
+                Majelis Khirriji Al-Haromain
+              </h1>
+              <p className="text-sm text-emerald-700">Riyadlul Jannah</p>
             </div>
           </div>
+          <Button
+            onClick={() => router.push("/admin/login")}
+            variant="outline"
+            className="border-emerald-300 text-emerald-700 hover:bg-emerald-50 hover:text-emerald-800"
+          >
+            <ShieldCheck className="w-4 h-4 mr-2" />
+            Login Admin
+          </Button>
         </div>
       </header>
 
       {/* Hero Section */}
-      <main className="container mx-auto px-4 py-16">
-        <div className="text-center mb-16">
-          <div className="flex justify-center mb-8">
-            <div className="w-36 h-36 rounded-full bg-gradient-to-br from-green-600 via-green-700 to-green-800 flex items-center justify-center shadow-2xl">
-              <QrCode className="h-20 w-20 text-white" />
-            </div>
+      <section className="relative container mx-auto px-4 py-16 text-center">
+        <div className="inline-flex items-center gap-2 px-4 py-2 bg-emerald-100 text-emerald-800 rounded-full text-sm font-medium mb-6 shadow-sm">
+          <Sparkles className="w-4 h-4" />
+          Sistem Undangan Digital
+        </div>
+        <div className="flex justify-center mb-8">
+          <div className="w-36 h-36 rounded-full bg-gradient-to-br from-green-600 via-green-700 to-green-800 flex items-center justify-center shadow-2xl">
+            <QrCode className="h-20 w-20 text-white" />
           </div>
-          <h2 className="text-4xl md:text-5xl font-bold mb-4 text-neutral-900 dark:text-neutral-50">
-            Sistem Undangan Digital
-          </h2>
-          <p className="text-xl text-neutral-600 dark:text-neutral-400 max-w-2xl mx-auto">
-            Majelis Khirriji Al-Haromain - Riyadlul Jannah
-          </p>
         </div>
 
-        {/* Feature Cards */}
-        <div className="grid md:grid-cols-2 gap-8 max-w-4xl mx-auto">
-          <Card className="border-2 border-green-200 hover:border-green-500 hover:shadow-xl transition-all">
-            <CardHeader>
-              <div className="w-14 h-14 bg-gradient-to-br from-green-600 to-green-700 rounded-lg flex items-center justify-center mb-4 shadow-md">
-                <QrCode className="h-7 w-7 text-white" />
+        <h2 className="text-5xl md:text-6xl font-bold text-emerald-950 mb-4 leading-tight">
+          Majelis Khirriji Al-Haromain
+        </h2>
+        <p className="text-2xl md:text-3xl text-teal-700 font-semibold mb-3">
+          Riyadlul Jannah
+        </p>
+        <p className="text-lg text-emerald-700 max-w-2xl mx-auto">
+          Sistem check-in digital untuk memudahkan pengelolaan tamu dan
+          kehadiran acara
+        </p>
+      </section>
+
+      {/* Feature Cards */}
+      <section className="relative container mx-auto px-4 pb-20">
+        <div className="grid md:grid-cols-2 gap-6 max-w-4xl mx-auto">
+          <Card className="border-emerald-100 shadow-xl hover:shadow-2xl transition-all duration-300 hover:-translate-y-1 bg-white/90 backdrop-blur-sm">
+            <CardHeader className="text-center pb-4">
+              <div className="w-16 h-16 bg-gradient-to-br from-teal-500 to-cyan-600 rounded-2xl flex items-center justify-center mx-auto mb-4 shadow-lg">
+                <Scan className="w-9 h-9 text-white" />
               </div>
-              <CardTitle className="text-xl">Undangan Digital</CardTitle>
-              <CardDescription className="text-base">
-                Akses undangan personal dengan QR Code unik
+              <CardTitle className="text-2xl text-emerald-900">
+                QR Scanner
+              </CardTitle>
+              <CardDescription className="text-base text-emerald-600">
+                Scan QR Code untuk check-in tamu dengan kamera HP
               </CardDescription>
             </CardHeader>
             <CardContent>
-              <div className="space-y-3">
-                <input
-                  type="text"
-                  placeholder="Masukkan token undangan"
-                  className="w-full px-4 py-3 border-2 border-neutral-200 rounded-lg text-sm focus:border-green-500 focus:outline-none transition-colors"
-                  id="invitationToken"
-                />
-                <Button
-                  onClick={() => {
-                    const token = document.getElementById('invitationToken') as HTMLInputElement
-                    if (token?.value) {
-                      router.push(`/invitation?id=${token.value}`)
-                    }
-                  }}
-                  className="w-full bg-gradient-to-r from-green-600 to-green-700 hover:from-green-700 hover:to-green-800 text-white py-3 text-base font-semibold shadow-md"
-                >
-                  Buka Undangan
-                </Button>
-              </div>
+              <Button
+                onClick={() => router.push("/scanner")}
+                className="w-full bg-gradient-to-r from-teal-500 to-cyan-600 hover:from-teal-600 hover:to-cyan-700 text-white shadow-lg hover:shadow-xl transition-all duration-300 py-6 text-lg font-semibold"
+              >
+                <QrCode className="w-5 h-5 mr-2" />
+                Buka Scanner
+              </Button>
             </CardContent>
           </Card>
 
-          <Card className="border-2 border-green-200 hover:border-green-500 hover:shadow-xl transition-all">
-            <CardHeader>
-              <div className="w-14 h-14 bg-gradient-to-br from-green-600 to-green-700 rounded-lg flex items-center justify-center mb-4 shadow-md">
-                <ShieldCheck className="h-7 w-7 text-white" />
+          <Card className="border-emerald-100 shadow-xl hover:shadow-2xl transition-all duration-300 hover:-translate-y-1 bg-white/90 backdrop-blur-sm">
+            <CardHeader className="text-center pb-4">
+              <div className="w-16 h-16 bg-gradient-to-br from-emerald-500 to-teal-600 rounded-2xl flex items-center justify-center mx-auto mb-4 shadow-lg">
+                <ShieldCheck className="w-9 h-9 text-white" />
               </div>
-              <CardTitle className="text-xl">Admin Dashboard</CardTitle>
-              <CardDescription className="text-base">
+              <CardTitle className="text-2xl text-emerald-900">
+                Admin Dashboard
+              </CardTitle>
+              <CardDescription className="text-base text-emerald-600">
                 Kelola tamu dan pantau kehadiran acara
               </CardDescription>
             </CardHeader>
             <CardContent>
               <Button
-                onClick={() => router.push('/admin/login')}
-                className="w-full py-3 text-base font-semibold"
-                variant="outline"
+                onClick={() => router.push("/admin/login")}
+                className="w-full bg-gradient-to-r from-emerald-500 to-teal-600 hover:from-emerald-600 hover:to-teal-700 text-white shadow-lg hover:shadow-xl transition-all duration-300 py-6 text-lg font-semibold"
               >
-                {isAuthenticated ? 'Buka Dashboard' : 'Login Admin'}
+                <ShieldCheck className="w-5 h-5 mr-2" />
+                {isAuthenticated ? "Buka Dashboard" : "Login Admin"}
               </Button>
             </CardContent>
           </Card>
         </div>
-
-        {/* Info Section */}
-        <div className="mt-20 max-w-3xl mx-auto">
-          <Card className="border-2 border-green-200 dark:border-green-900 shadow-lg">
-            <CardHeader className="text-center pb-6">
-              <CardTitle className="text-3xl text-green-800 dark:text-green-500">Cara Menggunakan</CardTitle>
-            </CardHeader>
-            <CardContent className="space-y-6">
-              <div className="flex gap-4">
-                <div className="flex-shrink-0 w-10 h-10 bg-gradient-to-br from-green-600 to-green-700 text-white rounded-full flex items-center justify-center font-bold text-lg shadow-md">
-                  1
-                </div>
-                <div>
-                  <h4 className="font-semibold mb-2 text-lg">Buka Undangan Digital</h4>
-                  <p className="text-sm text-neutral-600 dark:text-neutral-400">
-                    Masukkan token undangan yang diterima untuk melihat detail acara
-                  </p>
-                </div>
-              </div>
-              <div className="flex gap-4">
-                <div className="flex-shrink-0 w-10 h-10 bg-gradient-to-br from-green-600 to-green-700 text-white rounded-full flex items-center justify-center font-bold text-lg shadow-md">
-                  2
-                </div>
-                <div>
-                  <h4 className="font-semibold mb-2 text-lg">Konfirmasi Kehadiran</h4>
-                  <p className="text-sm text-neutral-600 dark:text-neutral-400">
-                    Isi formulir konfirmasi kehadiran pada halaman undangan
-                  </p>
-                </div>
-              </div>
-              <div className="flex gap-4">
-                <div className="flex-shrink-0 w-10 h-10 bg-gradient-to-br from-green-600 to-green-700 text-white rounded-full flex items-center justify-center font-bold text-lg shadow-md">
-                  3
-                </div>
-                <div>
-                  <h4 className="font-semibold mb-2 text-lg">Simpan QR Code</h4>
-                  <p className="text-sm text-neutral-600 dark:text-neutral-400">
-                    Download dan simpan QR Code untuk check-in saat acara berlangsung
-                  </p>
-                </div>
-              </div>
-            </CardContent>
-          </Card>
-        </div>
-      </main>
+      </section>
 
       {/* Footer */}
-      <footer className="border-t bg-white/80 dark:bg-neutral-950/80 backdrop-blur-sm mt-16">
-        <div className="container mx-auto px-4 py-8">
-          <p className="text-center text-sm text-neutral-600 dark:text-neutral-400">
-            © 2025 Majelis Khirriji Al-Haromain - Riyadlul Jannah
+      <footer className="relative border-t border-emerald-100 bg-white/80 backdrop-blur-sm py-6 mt-auto">
+        <div className="container mx-auto px-4 text-center text-emerald-700">
+          <p className="text-sm">
+            © 2026 Majelis Khirriji Al-Haromain - Riyadlul Jannah
           </p>
         </div>
       </footer>
     </div>
-  )
+  );
 }

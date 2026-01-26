@@ -19,7 +19,7 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
-import { ScrollArea } from "@/components/ui/scroll-area";
+// Removed ScrollArea import to prevent hydration mismatch
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Checkbox } from "@/components/ui/checkbox";
@@ -31,8 +31,26 @@ import {
   DialogTitle,
   DialogTrigger,
 } from "@/components/ui/dialog";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import {
+  Sheet,
+  SheetContent,
+  SheetDescription,
+  SheetHeader,
+  SheetTitle,
+  SheetTrigger,
+} from "@/components/ui/sheet";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+import {
+  LayoutDashboard,
+  Users,
+  Calendar,
+  History,
   LogOut,
   UserPlus,
   Download,
@@ -41,11 +59,13 @@ import {
   QrCode,
   CalendarPlus,
   Upload,
-  Users,
+  Menu,
+  X,
   FileText,
 } from "lucide-react";
 import { toast } from "sonner";
 
+// --- Types Interfaces ---
 interface EventGuest {
   id: string;
   token: string;
@@ -107,10 +127,16 @@ interface Guest {
 export default function DashboardPage() {
   const router = useRouter();
   const [loading, setLoading] = useState(true);
+  const [activeTab, setActiveTab] = useState("overview"); // overview, guests, events, history
+  const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
+
+  // Data States
   const [eventGuests, setEventGuests] = useState<EventGuest[]>([]);
   const [events, setEvents] = useState<Event[]>([]);
   const [allGuests, setAllGuests] = useState<Guest[]>([]);
   const [selectedEventId, setSelectedEventId] = useState<string>("");
+
+  // Stats States
   const [stats, setStats] = useState({
     totalGuests: 0,
     checkedInGuests: 0,
@@ -119,19 +145,22 @@ export default function DashboardPage() {
     rsvpPending: 0,
     rsvpRejected: 0,
   });
+
+  // Modal States
   const [showAddGuest, setShowAddGuest] = useState(false);
+  const [showQrDialog, setShowQrDialog] = useState(false);
+  const [showCreateEvent, setShowCreateEvent] = useState(false);
+  const [showBulkImport, setShowBulkImport] = useState(false);
+  const [showAddExistingGuests, setShowAddExistingGuests] = useState(false);
+  const [showEventDetail, setShowEventDetail] = useState(false);
+
+  // Form States
   const [newGuest, setNewGuest] = useState({
     name: "",
     whatsapp: "",
     address: "",
     area: "",
   });
-  const [showQrDialog, setShowQrDialog] = useState(false);
-  const [selectedEventGuest, setSelectedEventGuest] =
-    useState<EventGuest | null>(null);
-  const [generatingQr, setGeneratingQr] = useState(false);
-
-  const [showCreateEvent, setShowCreateEvent] = useState(false);
   const [newEvent, setNewEvent] = useState({
     title: "",
     date: "",
@@ -139,39 +168,41 @@ export default function DashboardPage() {
     location: "",
     description: "",
   });
-
-  const [showBulkImport, setShowBulkImport] = useState(false);
   const [importFile, setImportFile] = useState<File | null>(null);
-  const [importResults, setImportResults] = useState<any>(null);
-  const [importing, setImporting] = useState(false);
-
-  const [showAddExistingGuests, setShowAddExistingGuests] = useState(false);
   const [searchQuery, setSearchQuery] = useState("");
   const [selectedGuests, setSelectedGuests] = useState<Set<string>>(new Set());
-  const [addingGuests, setAddingGuests] = useState(false);
 
-  const [activeTab, setActiveTab] = useState("guests");
-  const [eventHistory, setEventHistory] = useState<EventStats[]>([]);
+  // Loading States
+  const [generatingQr, setGeneratingQr] = useState(false);
+  const [importing, setImporting] = useState(false);
+  const [addingGuests, setAddingGuests] = useState(false);
   const [loadingHistory, setLoadingHistory] = useState(false);
+
+  // Detail States
+  const [selectedEventGuest, setSelectedEventGuest] =
+    useState<EventGuest | null>(null);
+  const [eventHistory, setEventHistory] = useState<EventStats[]>([]);
   const [selectedEventDetail, setSelectedEventDetail] =
     useState<EventStats | null>(null);
-  const [showEventDetail, setShowEventDetail] = useState(false);
+  const [importResults, setImportResults] = useState<any>(null);
 
+  // --- Effects ---
   useEffect(() => {
     fetchEvents();
-    if (activeTab === "history") {
-      fetchEventHistory();
-    }
-  }, [activeTab]);
+  }, []);
 
   useEffect(() => {
-    if (selectedEventId) {
-      fetchEventGuests();
-      fetchStats();
-      fetchAllGuests();
+    if (activeTab === "history") fetchEventHistory();
+    else if (activeTab === "overview" || activeTab === "guests") {
+      if (selectedEventId) {
+        fetchEventGuests();
+        fetchStats();
+        fetchAllGuests();
+      }
     }
-  }, [selectedEventId]);
+  }, [activeTab, selectedEventId]);
 
+  // --- Fetch Functions ---
   const fetchEvents = async () => {
     try {
       const response = await fetch("/api/events");
@@ -188,13 +219,12 @@ export default function DashboardPage() {
   };
 
   const fetchEventGuests = async () => {
+    if (!selectedEventId) return;
     setLoading(true);
     try {
       const response = await fetch(`/api/guests?eventId=${selectedEventId}`);
       const data = await response.json();
-      if (response.ok) {
-        setEventGuests(data.eventGuests);
-      }
+      if (response.ok) setEventGuests(data.eventGuests);
     } catch (error) {
       toast.error("Gagal mengambil data tamu");
     } finally {
@@ -203,31 +233,51 @@ export default function DashboardPage() {
   };
 
   const fetchStats = async () => {
+    if (!selectedEventId) return;
     try {
       const response = await fetch(`/api/dashboard?eventId=${selectedEventId}`);
       const data = await response.json();
-      if (response.ok) {
-        setStats(data);
-      }
+      if (response.ok) setStats(data);
     } catch (error) {
       toast.error("Gagal mengambil statistik");
     }
   };
 
   const fetchAllGuests = async () => {
+    if (!selectedEventId) return;
     try {
       const response = await fetch(
         `/api/guests/all-guests?eventId=${selectedEventId}`
       );
       const data = await response.json();
-      if (response.ok) {
-        setAllGuests(data.guests);
-      }
+      if (response.ok) setAllGuests(data.guests);
     } catch (error) {
-      toast.error("Gagal mengambil data tamu database");
+      toast.error("Gagal mengambil data database");
     }
   };
 
+  const fetchEventHistory = async () => {
+    setLoadingHistory(true);
+    try {
+      const response = await fetch("/api/events");
+      const data = await response.json();
+      if (response.ok && data.events) {
+        const historyData: EventStats[] = [];
+        for (const event of data.events) {
+          const eventResponse = await fetch(`/api/events/${event.id}`);
+          const eventData = await eventResponse.json();
+          if (eventResponse.ok) historyData.push(eventData);
+        }
+        setEventHistory(historyData);
+      }
+    } catch (error) {
+      toast.error("Gagal mengambil riwayat acara");
+    } finally {
+      setLoadingHistory(false);
+    }
+  };
+
+  // --- Action Handlers ---
   const handleLogout = async () => {
     try {
       await fetch("/api/auth/logout", { method: "POST" });
@@ -246,7 +296,6 @@ export default function DashboardPage() {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(newEvent),
       });
-
       if (response.ok) {
         toast.success("Acara berhasil dibuat");
         setShowCreateEvent(false);
@@ -273,12 +322,8 @@ export default function DashboardPage() {
       const response = await fetch("/api/guests", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          eventId: selectedEventId,
-          ...newGuest,
-        }),
+        body: JSON.stringify({ eventId: selectedEventId, ...newGuest }),
       });
-
       if (response.ok) {
         toast.success("Tamu berhasil ditambahkan");
         setShowAddGuest(false);
@@ -298,36 +343,26 @@ export default function DashboardPage() {
   const handleDeleteEventGuest = async (eventGuestId: string) => {
     if (!confirm("Apakah Anda yakin ingin menghapus tamu ini dari acara?"))
       return;
-
     try {
       const response = await fetch(`/api/guests/${eventGuestId}`, {
         method: "DELETE",
       });
-
       if (response.ok) {
-        toast.success("Tamu berhasil dihapus dari acara");
+        toast.success("Tamu berhasil dihapus");
         fetchEventGuests();
         fetchStats();
         fetchAllGuests();
-      } else {
-        toast.error("Gagal menghapus tamu");
-      }
+      } else toast.error("Gagal menghapus tamu");
     } catch (error) {
       toast.error("Gagal menghapus tamu");
     }
   };
 
   const handleBulkImport = async () => {
-    if (!importFile) {
-      toast.error("Pilih file terlebih dahulu");
-      return;
-    }
-
+    if (!importFile) return toast.error("Pilih file terlebih dahulu");
     setImporting(true);
     setImportResults(null);
-
     const Papa = require("papaparse");
-
     Papa.parse(importFile, {
       header: true,
       skipEmptyLines: true,
@@ -341,28 +376,21 @@ export default function DashboardPage() {
               area: row.area || "",
             }))
             .filter((guest: any) => guest.name && guest.whatsapp);
-
           const response = await fetch("/api/guests/bulk-import", {
             method: "POST",
             headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({
-              eventId: selectedEventId,
-              guests,
-            }),
+            body: JSON.stringify({ eventId: selectedEventId, guests }),
           });
-
           if (response.ok) {
             const data = await response.json();
             setImportResults(data.results);
-            toast.success(
-              `Import berhasil: ${data.results.success} tamu ditambahkan`
-            );
+            toast.success(`Import berhasil: ${data.results.success} tamu`);
             fetchEventGuests();
             fetchStats();
             fetchAllGuests();
           } else {
             const data = await response.json();
-            toast.error(data.error || "Gagal import data");
+            toast.error(data.error || "Gagal import");
           }
         } catch (error) {
           toast.error("Gagal memproses file");
@@ -370,19 +398,15 @@ export default function DashboardPage() {
           setImporting(false);
         }
       },
-      error: (error) => {
-        toast.error("Gagal membaca file CSV");
+      error: () => {
+        toast.error("Gagal membaca CSV");
         setImporting(false);
       },
     });
   };
 
   const handleAddExistingGuests = async () => {
-    if (selectedGuests.size === 0) {
-      toast.error("Pilih minimal 1 tamu");
-      return;
-    }
-
+    if (selectedGuests.size === 0) return toast.error("Pilih minimal 1 tamu");
     setAddingGuests(true);
     try {
       const response = await fetch("/api/guests/invite-to-event", {
@@ -393,7 +417,6 @@ export default function DashboardPage() {
           guestIds: Array.from(selectedGuests),
         }),
       });
-
       if (response.ok) {
         const data = await response.json();
         toast.success(`${data.results.success} tamu berhasil diundang`);
@@ -404,7 +427,7 @@ export default function DashboardPage() {
         fetchStats();
       } else {
         const data = await response.json();
-        toast.error(data.error || "Gagal mengundang tamu");
+        toast.error(data.error || "Gagal mengundang");
       }
     } catch (error) {
       toast.error("Gagal mengundang tamu");
@@ -417,23 +440,19 @@ export default function DashboardPage() {
     setSelectedEventGuest(eventGuest);
     setGeneratingQr(true);
     setShowQrDialog(true);
-
     try {
       const response = await fetch("/api/qrcode/generate", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ eventGuestId: eventGuest.id }),
       });
-
       if (response.ok) {
         const data = await response.json();
         setSelectedEventGuest(data.eventGuest);
         toast.success("QR Code berhasil digenerate");
-      } else {
-        toast.error("Gagal generate QR Code");
-      }
+      } else toast.error("Gagal generate QR");
     } catch (error) {
-      toast.error("Gagal generate QR Code");
+      toast.error("Gagal generate QR");
     } finally {
       setGeneratingQr(false);
     }
@@ -442,7 +461,7 @@ export default function DashboardPage() {
   const copyInvitationLink = (eventGuest: EventGuest) => {
     const link = `${window.location.origin}/invitation?id=${eventGuest.token}`;
     navigator.clipboard.writeText(link);
-    toast.success("Link undangan berhasil disalin");
+    toast.success("Link undangan disalin");
   };
 
   const exportToExcel = () => {
@@ -470,7 +489,6 @@ export default function DashboardPage() {
     ]
       .map((row) => row.map((cell) => `"${cell}"`).join(","))
       .join("\n");
-
     const blob = new Blob([csvContent], { type: "text/csv;charset=utf-8;" });
     const link = document.createElement("a");
     link.href = URL.createObjectURL(blob);
@@ -486,29 +504,6 @@ export default function DashboardPage() {
       (guest.area &&
         guest.area.toLowerCase().includes(searchQuery.toLowerCase()))
   );
-
-  const fetchEventHistory = async () => {
-    setLoadingHistory(true);
-    try {
-      const response = await fetch("/api/events");
-      const data = await response.json();
-      if (response.ok && data.events) {
-        const historyData: EventStats[] = [];
-        for (const event of data.events) {
-          const eventResponse = await fetch(`/api/events/${event.id}`);
-          const eventData = await eventResponse.json();
-          if (eventResponse.ok) {
-            historyData.push(eventData);
-          }
-        }
-        setEventHistory(historyData);
-      }
-    } catch (error) {
-      toast.error("Gagal mengambil riwayat acara");
-    } finally {
-      setLoadingHistory(false);
-    }
-  };
 
   const handleExportEventData = (eventStats: EventStats) => {
     const csvContent = [
@@ -535,7 +530,6 @@ export default function DashboardPage() {
     ]
       .map((row) => row.map((cell) => `"${cell}"`).join(","))
       .join("\n");
-
     const blob = new Blob([csvContent], { type: "text/csv;charset=utf-8;" });
     const link = document.createElement("a");
     link.href = URL.createObjectURL(blob);
@@ -547,145 +541,608 @@ export default function DashboardPage() {
   };
 
   const handleDeleteEvent = async (eventId: string) => {
-    if (
-      !confirm(
-        "Apakah Anda yakin ingin menghapus acara ini? Semua data tamu dan riwayat kehadiran akan dihapus permanen."
-      )
-    )
-      return;
-
+    if (!confirm("Hapus acara ini? Data tidak bisa dikembalikan.")) return;
     try {
       const response = await fetch(`/api/events/${eventId}`, {
         method: "DELETE",
       });
-
       if (response.ok) {
-        toast.success("Acara berhasil dihapus");
+        toast.success("Acara dihapus");
         fetchEventHistory();
-        if (selectedEventId === eventId) {
-          setSelectedEventId("");
-        }
-      } else {
-        toast.error("Gagal menghapus acara");
-      }
+        if (selectedEventId === eventId) setSelectedEventId("");
+      } else toast.error("Gagal menghapus acara");
     } catch (error) {
       toast.error("Gagal menghapus acara");
     }
   };
 
   return (
-    <div className="min-h-screen bg-gradient-to-b from-neutral-50 to-neutral-100 dark:from-neutral-950 dark:to-neutral-900">
-      <header className="border-b bg-white/50 dark:bg-neutral-950/50 backdrop-blur-sm">
-        <div className="container mx-auto px-4 py-4">
-          <div className="flex items-center justify-between">
-            <div className="flex items-center gap-4">
-              <Button
-                variant="ghost"
-                size="icon"
-                onClick={() => router.push("/")}
-              >
-                <ArrowLeft className="h-5 w-5" />
-              </Button>
-              <div>
-                <h1 className="text-2xl font-bold text-neutral-900 dark:text-neutral-50">
-                  Dashboard Admin
-                </h1>
-                <p className="text-sm text-neutral-600 dark:text-neutral-400">
-                  Manajemen Acara & Tamu
-                </p>
-              </div>
-            </div>
-            <div className="flex items-center gap-2">
-              <Button variant="outline" onClick={() => router.push("/scanner")}>
-                <QrCode className="h-4 w-4 mr-2" />
-                Scanner
-              </Button>
-              <Button variant="outline" onClick={handleLogout}>
-                <LogOut className="h-4 w-4 mr-2" />
-                Logout
-              </Button>
-            </div>
+    <div className="min-h-screen bg-slate-50 flex flex-col md:flex-row">
+      {/* --- MOBILE HEADER & DRAWER --- */}
+      <header className="md:hidden fixed top-0 w-full z-50 bg-white border-b px-4 py-3 flex justify-between items-center">
+        <div className="flex items-center gap-2">
+          <div className="bg-emerald-600 p-1.5 rounded text-white">
+            <LayoutDashboard className="h-5 w-5" />
           </div>
+          <span className="font-bold text-lg text-slate-800">Admin Panel</span>
         </div>
+        <Sheet open={mobileMenuOpen} onOpenChange={setMobileMenuOpen}>
+          <SheetTrigger asChild>
+            <Button variant="ghost" size="icon">
+              <Menu className="h-6 w-6" />
+            </Button>
+          </SheetTrigger>
+          <SheetContent side="left" className="w-[280px] p-0">
+            <div className="p-6 pb-2">
+              <h2 className="font-bold text-xl text-slate-800 mb-4">
+                Menu Navigasi
+              </h2>
+            </div>
+            <nav className="flex flex-col gap-1 px-4 pb-6">
+              <NavButton
+                icon={<LayoutDashboard className="h-4 w-4" />}
+                label="Ringkasan"
+                active={activeTab === "overview"}
+                onClick={() => {
+                  setActiveTab("overview");
+                  setMobileMenuOpen(false);
+                }}
+              />
+              <NavButton
+                icon={<Users className="h-4 w-4" />}
+                label="Daftar Tamu"
+                active={activeTab === "guests"}
+                onClick={() => {
+                  setActiveTab("guests");
+                  setMobileMenuOpen(false);
+                }}
+              />
+              <NavButton
+                icon={<Calendar className="h-4 w-4" />}
+                label="Kelola Acara"
+                active={activeTab === "events"}
+                onClick={() => {
+                  setActiveTab("events");
+                  setMobileMenuOpen(false);
+                }}
+              />
+              <NavButton
+                icon={<History className="h-4 w-4" />}
+                label="Riwayat"
+                active={activeTab === "history"}
+                onClick={() => {
+                  setActiveTab("history");
+                  setMobileMenuOpen(false);
+                }}
+              />
+              <div className="my-2 border-t" />
+              <NavButton
+                icon={<LogOut className="h-4 w-4" />}
+                label="Logout"
+                onClick={() => {
+                  handleLogout();
+                  setMobileMenuOpen(false);
+                }}
+                variant="destructive"
+              />
+            </nav>
+          </SheetContent>
+        </Sheet>
       </header>
 
-      <main className="container mx-auto px-4 py-6">
-        {events.length > 0 && activeTab === "guests" && (
-          <Card className="mb-6">
-            <CardHeader>
-              <div className="flex items-center justify-between flex-wrap gap-4">
-                <div className="flex-1 min-w-[200px]">
-                  <select
-                    value={selectedEventId}
-                    onChange={(e) => setSelectedEventId(e.target.value)}
-                    className="w-full px-3 py-2 border rounded-md bg-background"
+      {/* --- SIDEBAR (Desktop) --- */}
+      <aside className="hidden md:flex flex-col w-64 bg-white border-r h-screen sticky top-0">
+        <div className="p-6 flex items-center gap-3 border-b">
+          <div className="bg-gradient-to-br from-emerald-500 to-teal-600 p-2 rounded-lg text-white shadow-lg">
+            <LayoutDashboard className="h-6 w-6" />
+          </div>
+          <div>
+            <h1 className="font-bold text-lg text-slate-800 leading-tight">
+              Undangan Digital
+            </h1>
+            <p className="text-xs text-slate-500">Admin Dashboard</p>
+          </div>
+        </div>
+
+        <nav className="flex-1 flex flex-col gap-1 p-4">
+          <NavButton
+            icon={<LayoutDashboard className="h-4 w-4" />}
+            label="Ringkasan"
+            active={activeTab === "overview"}
+            onClick={() => setActiveTab("overview")}
+          />
+          <NavButton
+            icon={<Users className="h-4 w-4" />}
+            label="Daftar Tamu"
+            active={activeTab === "guests"}
+            onClick={() => setActiveTab("guests")}
+          />
+          <NavButton
+            icon={<Calendar className="h-4 w-4" />}
+            label="Kelola Acara"
+            active={activeTab === "events"}
+            onClick={() => setActiveTab("events")}
+          />
+          <NavButton
+            icon={<History className="h-4 w-4" />}
+            label="Riwayat Acara"
+            active={activeTab === "history"}
+            onClick={() => setActiveTab("history")}
+          />
+        </nav>
+
+        <div className="p-4 border-t">
+          <NavButton
+            icon={<LogOut className="h-4 w-4" />}
+            label="Logout"
+            onClick={handleLogout}
+            variant="destructive"
+          />
+        </div>
+      </aside>
+
+      {/* --- MAIN CONTENT --- */}
+      <main className="flex-1 flex flex-col h-screen overflow-hidden pt-16 md:pt-0">
+        {/* Top Bar for Desktop Actions */}
+        <div className="bg-white border-b px-6 py-4 flex items-center justify-between shrink-0">
+          <div className="flex flex-col">
+            <h2 className="text-xl font-bold text-slate-800 capitalize">
+              {activeTab === "overview" && "Ringkasan Acara"}
+              {activeTab === "guests" && "Manajemen Tamu"}
+              {activeTab === "events" && "Pengaturan Acara"}
+              {activeTab === "history" && "Riwayat & Laporan"}
+            </h2>
+            <p className="text-sm text-slate-500">
+              {activeTab === "overview" || activeTab === "guests"
+                ? events.find((e) => e.id === selectedEventId)?.title ||
+                  "Pilih Acara"
+                : "Kelola data sistem undangan"}
+            </p>
+          </div>
+          <div className="flex gap-2">
+            {(activeTab === "overview" || activeTab === "guests") && (
+              <Select
+                value={selectedEventId}
+                onValueChange={setSelectedEventId}
+              >
+                <SelectTrigger className="w-[200px] md:w-[300px]">
+                  <SelectValue placeholder="Pilih Acara..." />
+                </SelectTrigger>
+                <SelectContent>
+                  {events.map((event) => (
+                    <SelectItem key={event.id} value={event.id}>
+                      {event.title} ({event.date})
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            )}
+            <Button
+              variant="outline"
+              size="icon"
+              onClick={() => {
+                fetchEventGuests();
+                fetchStats();
+                fetchAllGuests();
+                fetchEvents();
+              }}
+            >
+              <RefreshCw className="h-4 w-4" />
+            </Button>
+          </div>
+        </div>
+
+        {/* Replaced ScrollArea with div and overflow-auto to fix hydration */}
+        <div className="flex-1 p-6 overflow-y-auto">
+          {/* --- VIEW: OVERVIEW --- */}
+          {activeTab === "overview" && (
+            <div className="space-y-6">
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+                <StatCard
+                  title="Total Undangan"
+                  value={stats.totalGuests}
+                  icon={<Users className="h-5 w-5 text-blue-600" />}
+                  color="blue"
+                />
+                <StatCard
+                  title="Sudah Check-in"
+                  value={stats.checkedInGuests}
+                  icon={<QrCode className="h-5 w-5 text-green-600" />}
+                  color="green"
+                />
+                <StatCard
+                  title="Belum Hadir"
+                  value={stats.pendingGuests}
+                  icon={<X className="h-5 w-5 text-orange-600" />}
+                  color="orange"
+                />
+                <StatCard
+                  title="RSVP Confirm"
+                  value={stats.rsvpConfirmed}
+                  icon={<FileText className="h-5 w-5 text-purple-600" />}
+                  color="purple"
+                />
+              </div>
+
+              <Card>
+                <CardHeader>
+                  <CardTitle>Aksi Cepat</CardTitle>
+                </CardHeader>
+                <CardContent className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                  <Button
+                    onClick={() => setShowAddGuest(true)}
+                    className="h-20 flex-col gap-1"
                   >
-                    {events.map((event) => (
-                      <option key={event.id} value={event.id}>
-                        {event.title} - {event.date}
-                      </option>
-                    ))}
-                  </select>
+                    <UserPlus className="h-6 w-6" />
+                    Tambah Tamu Baru
+                  </Button>
+                  <Button
+                    onClick={() => setShowBulkImport(true)}
+                    variant="outline"
+                    className="h-20 flex-col gap-1"
+                  >
+                    <Upload className="h-6 w-6" />
+                    Import CSV
+                  </Button>
+                  <Button
+                    onClick={() => router.push("/scanner")}
+                    variant="secondary"
+                    className="h-20 flex-col gap-1"
+                  >
+                    <QrCode className="h-6 w-6" />
+                    Buka Scanner
+                  </Button>
+                </CardContent>
+              </Card>
+              <Card>
+                <CardHeader>
+                  <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
+                    <div>
+                      <CardTitle>Daftar Tamu</CardTitle>
+                      <CardDescription>
+                        {eventGuests.length} tamu terdaftar
+                      </CardDescription>
+                    </div>
+                    <div className="flex gap-2">
+                      <Button onClick={() => setShowAddGuest(true)} size="sm">
+                        <UserPlus className="h-4 w-4 mr-2" /> Tambah
+                      </Button>
+                      <Button
+                        onClick={() => setShowBulkImport(true)}
+                        variant="outline"
+                        size="sm"
+                      >
+                        <Upload className="h-4 w-4 mr-2" /> Import
+                      </Button>
+                      <Button
+                        onClick={() => setShowAddExistingGuests(true)}
+                        variant="outline"
+                        size="sm"
+                      >
+                        <Users className="h-4 w-4 mr-2" /> DB
+                      </Button>
+                      <Button
+                        onClick={exportToExcel}
+                        variant="outline"
+                        size="sm"
+                      >
+                        <Download className="h-4 w-4 mr-2" /> Export
+                      </Button>
+                    </div>
+                  </div>
+                </CardHeader>
+                <CardContent>
+                  <div className="rounded-md border overflow-hidden">
+                    <Table>
+                      <TableHeader>
+                        <TableRow>
+                          <TableHead>Nama</TableHead>
+                          <TableHead className="hidden md:table-cell">
+                            WhatsApp
+                          </TableHead>
+                          <TableHead className="hidden md:table-cell">
+                            Area
+                          </TableHead>
+                          <TableHead>Status</TableHead>
+                          <TableHead className="text-right">Aksi</TableHead>
+                        </TableRow>
+                      </TableHeader>
+                      <TableBody>
+                        {loading ? (
+                          <TableRow>
+                            <TableCell colSpan={5} className="text-center py-8">
+                              Memuat data...
+                            </TableCell>
+                          </TableRow>
+                        ) : eventGuests.length === 0 ? (
+                          <TableRow>
+                            <TableCell colSpan={5} className="text-center py-8">
+                              Belum ada tamu.
+                            </TableCell>
+                          </TableRow>
+                        ) : (
+                          eventGuests.map((eg) => (
+                            <TableRow key={eg.id}>
+                              <TableCell className="font-medium">
+                                <div className="flex flex-col">
+                                  <span>{eg.guest.name}</span>
+                                  <span className="text-xs text-slate-500 md:hidden">
+                                    {eg.guest.whatsapp}
+                                  </span>
+                                </div>
+                              </TableCell>
+                              <TableCell className="hidden md:table-cell">
+                                {eg.guest.whatsapp}
+                              </TableCell>
+                              <TableCell className="hidden md:table-cell">
+                                {eg.guest.area || "-"}
+                              </TableCell>
+                              <TableCell>
+                                <div className="flex flex-col gap-1">
+                                  <Badge
+                                    variant={
+                                      eg.rsvpStatus === "confirmed"
+                                        ? "default"
+                                        : "secondary"
+                                    }
+                                  >
+                                    {eg.rsvpStatus}
+                                  </Badge>
+                                  {eg.attendance && (
+                                    <Badge className="bg-green-600 w-fit">
+                                      Hadir{" "}
+                                      {/* Added suppressHydrationWarning to fix Date mismatch */}
+                                      <span suppressHydrationWarning>
+                                        {new Date(
+                                          eg.attendance.checkinTime
+                                        ).toLocaleTimeString("id-ID", {
+                                          hour: "2-digit",
+                                          minute: "2-digit",
+                                        })}
+                                      </span>
+                                    </Badge>
+                                  )}
+                                </div>
+                              </TableCell>
+                              <TableCell className="text-right">
+                                <div className="flex justify-end gap-1">
+                                  <Button
+                                    size="icon"
+                                    variant="ghost"
+                                    onClick={() => generateQrCode(eg)}
+                                  >
+                                    <QrCode className="h-4 w-4" />
+                                  </Button>
+                                  <Button
+                                    size="icon"
+                                    variant="ghost"
+                                    onClick={() => copyInvitationLink(eg)}
+                                  >
+                                    <FileText className="h-4 w-4" />
+                                  </Button>
+                                  <Button
+                                    size="icon"
+                                    variant="ghost"
+                                    className="text-red-600 hover:text-red-700"
+                                    onClick={() =>
+                                      handleDeleteEventGuest(eg.id)
+                                    }
+                                  >
+                                    <X className="h-4 w-4" />
+                                  </Button>
+                                </div>
+                              </TableCell>
+                            </TableRow>
+                          ))
+                        )}
+                      </TableBody>
+                    </Table>
+                  </div>
+                </CardContent>
+              </Card>
+            </div>
+          )}
+
+          {/* --- VIEW: GUESTS --- */}
+          {activeTab === "guests" && (
+            <Card>
+              <CardHeader>
+                <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
+                  <div>
+                    <CardTitle>Daftar Tamu</CardTitle>
+                    <CardDescription>
+                      {eventGuests.length} tamu terdaftar
+                    </CardDescription>
+                  </div>
+                  <div className="flex gap-2">
+                    <Button onClick={() => setShowAddGuest(true)} size="sm">
+                      <UserPlus className="h-4 w-4 mr-2" /> Tambah
+                    </Button>
+                    <Button
+                      onClick={() => setShowBulkImport(true)}
+                      variant="outline"
+                      size="sm"
+                    >
+                      <Upload className="h-4 w-4 mr-2" /> Import
+                    </Button>
+                    <Button
+                      onClick={() => setShowAddExistingGuests(true)}
+                      variant="outline"
+                      size="sm"
+                    >
+                      <Users className="h-4 w-4 mr-2" /> DB
+                    </Button>
+                    <Button onClick={exportToExcel} variant="outline" size="sm">
+                      <Download className="h-4 w-4 mr-2" /> Export
+                    </Button>
+                  </div>
                 </div>
+              </CardHeader>
+              <CardContent>
+                <div className="rounded-md border overflow-hidden">
+                  <Table>
+                    <TableHeader>
+                      <TableRow>
+                        <TableHead>Nama</TableHead>
+                        <TableHead className="hidden md:table-cell">
+                          WhatsApp
+                        </TableHead>
+                        <TableHead className="hidden md:table-cell">
+                          Area
+                        </TableHead>
+                        <TableHead>Status</TableHead>
+                        <TableHead className="text-right">Aksi</TableHead>
+                      </TableRow>
+                    </TableHeader>
+                    <TableBody>
+                      {loading ? (
+                        <TableRow>
+                          <TableCell colSpan={5} className="text-center py-8">
+                            Memuat data...
+                          </TableCell>
+                        </TableRow>
+                      ) : eventGuests.length === 0 ? (
+                        <TableRow>
+                          <TableCell colSpan={5} className="text-center py-8">
+                            Belum ada tamu.
+                          </TableCell>
+                        </TableRow>
+                      ) : (
+                        eventGuests.map((eg) => (
+                          <TableRow key={eg.id}>
+                            <TableCell className="font-medium">
+                              <div className="flex flex-col">
+                                <span>{eg.guest.name}</span>
+                                <span className="text-xs text-slate-500 md:hidden">
+                                  {eg.guest.whatsapp}
+                                </span>
+                              </div>
+                            </TableCell>
+                            <TableCell className="hidden md:table-cell">
+                              {eg.guest.whatsapp}
+                            </TableCell>
+                            <TableCell className="hidden md:table-cell">
+                              {eg.guest.area || "-"}
+                            </TableCell>
+                            <TableCell>
+                              <div className="flex flex-col gap-1">
+                                <Badge
+                                  variant={
+                                    eg.rsvpStatus === "confirmed"
+                                      ? "default"
+                                      : "secondary"
+                                  }
+                                >
+                                  {eg.rsvpStatus}
+                                </Badge>
+                                {eg.attendance && (
+                                  <Badge className="bg-green-600 w-fit">
+                                    Hadir{" "}
+                                    {/* Added suppressHydrationWarning to fix Date mismatch */}
+                                    <span suppressHydrationWarning>
+                                      {new Date(
+                                        eg.attendance.checkinTime
+                                      ).toLocaleTimeString("id-ID", {
+                                        hour: "2-digit",
+                                        minute: "2-digit",
+                                      })}
+                                    </span>
+                                  </Badge>
+                                )}
+                              </div>
+                            </TableCell>
+                            <TableCell className="text-right">
+                              <div className="flex justify-end gap-1">
+                                <Button
+                                  size="icon"
+                                  variant="ghost"
+                                  onClick={() => generateQrCode(eg)}
+                                >
+                                  <QrCode className="h-4 w-4" />
+                                </Button>
+                                <Button
+                                  size="icon"
+                                  variant="ghost"
+                                  onClick={() => copyInvitationLink(eg)}
+                                >
+                                  <FileText className="h-4 w-4" />
+                                </Button>
+                                <Button
+                                  size="icon"
+                                  variant="ghost"
+                                  className="text-red-600 hover:text-red-700"
+                                  onClick={() => handleDeleteEventGuest(eg.id)}
+                                >
+                                  <X className="h-4 w-4" />
+                                </Button>
+                              </div>
+                            </TableCell>
+                          </TableRow>
+                        ))
+                      )}
+                    </TableBody>
+                  </Table>
+                </div>
+              </CardContent>
+            </Card>
+          )}
+
+          {/* --- VIEW: EVENTS --- */}
+          {activeTab === "events" && (
+            <div className="space-y-6">
+              <div className="flex justify-end">
                 <Dialog
                   open={showCreateEvent}
                   onOpenChange={setShowCreateEvent}
                 >
                   <DialogTrigger asChild>
                     <Button>
-                      <CalendarPlus className="h-4 w-4 mr-2" />
-                      Buat Acara Baru
+                      <CalendarPlus className="h-4 w-4 mr-2" /> Buat Acara Baru
                     </Button>
                   </DialogTrigger>
                   <DialogContent>
                     <DialogHeader>
                       <DialogTitle>Buat Acara Baru</DialogTitle>
-                      <DialogDescription>
-                        Isi detail acara yang ingin dibuat
-                      </DialogDescription>
                     </DialogHeader>
                     <form onSubmit={handleCreateEvent} className="space-y-4">
-                      <div className="space-y-2">
-                        <Label htmlFor="title">Judul Acara *</Label>
+                      <div className="grid gap-2">
+                        <Label>Judul</Label>
                         <Input
-                          id="title"
+                          required
                           value={newEvent.title}
                           onChange={(e) =>
                             setNewEvent({ ...newEvent, title: e.target.value })
                           }
-                          required
                         />
                       </div>
                       <div className="grid grid-cols-2 gap-4">
-                        <div className="space-y-2">
-                          <Label htmlFor="date">Tanggal *</Label>
+                        <div className="grid gap-2">
+                          <Label>Tanggal</Label>
                           <Input
-                            id="date"
                             type="date"
+                            required
                             value={newEvent.date}
                             onChange={(e) =>
                               setNewEvent({ ...newEvent, date: e.target.value })
                             }
-                            required
                           />
                         </div>
-                        <div className="space-y-2">
-                          <Label htmlFor="time">Waktu *</Label>
+                        <div className="grid gap-2">
+                          <Label>Waktu</Label>
                           <Input
-                            id="time"
                             type="time"
+                            required
                             value={newEvent.time}
                             onChange={(e) =>
                               setNewEvent({ ...newEvent, time: e.target.value })
                             }
-                            required
                           />
                         </div>
                       </div>
-                      <div className="space-y-2">
-                        <Label htmlFor="location">Lokasi *</Label>
+                      <div className="grid gap-2">
+                        <Label>Lokasi</Label>
                         <Input
-                          id="location"
+                          required
                           value={newEvent.location}
                           onChange={(e) =>
                             setNewEvent({
@@ -693,13 +1150,12 @@ export default function DashboardPage() {
                               location: e.target.value,
                             })
                           }
-                          required
                         />
                       </div>
-                      <div className="space-y-2">
-                        <Label htmlFor="description">Deskripsi</Label>
+                      <div className="grid gap-2">
+                        <Label>Deskripsi</Label>
                         <textarea
-                          id="description"
+                          className="flex min-h-[80px] w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
                           value={newEvent.description}
                           onChange={(e) =>
                             setNewEvent({
@@ -707,546 +1163,107 @@ export default function DashboardPage() {
                               description: e.target.value,
                             })
                           }
-                          className="w-full px-3 py-2 border rounded-md bg-background min-h-[100px]"
                         />
                       </div>
                       <Button type="submit" className="w-full">
-                        Buat Acara
+                        Simpan
                       </Button>
                     </form>
                   </DialogContent>
                 </Dialog>
               </div>
-            </CardHeader>
-          </Card>
-        )}
 
-        <Tabs value={activeTab} onValueChange={setActiveTab} className="mb-6">
-          <TabsList className="grid w-full grid-cols-2">
-            <TabsTrigger value="guests">
-              <UserPlus className="h-4 w-4 mr-2" />
-              Tamu
-            </TabsTrigger>
-            <TabsTrigger value="history">
-              <FileText className="h-4 w-4 mr-2" />
-              Riwayat Acara
-            </TabsTrigger>
-          </TabsList>
-
-          <TabsContent value="guests">
-            {activeTab === "guests" && selectedEventId && (
-              <>
-                <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-6">
-                  <Card>
-                    <CardHeader className="pb-2">
-                      <CardDescription>Total Tamu</CardDescription>
-                      <CardTitle className="text-3xl">
-                        {stats.totalGuests}
-                      </CardTitle>
-                    </CardHeader>
-                  </Card>
-                  <Card>
-                    <CardHeader className="pb-2">
-                      <CardDescription>Sudah Check-in</CardDescription>
-                      <CardTitle className="text-3xl text-green-600">
-                        {stats.checkedInGuests}
-                      </CardTitle>
-                    </CardHeader>
-                  </Card>
-                  <Card>
-                    <CardHeader className="pb-2">
-                      <CardDescription>Belum Hadir</CardDescription>
-                      <CardTitle className="text-3xl text-orange-600">
-                        {stats.pendingGuests}
-                      </CardTitle>
-                    </CardHeader>
-                  </Card>
-                  <Card>
-                    <CardHeader className="pb-2">
-                      <CardDescription>RSVP Confirmed</CardDescription>
-                      <CardTitle className="text-3xl text-blue-600">
-                        {stats.rsvpConfirmed}
-                      </CardTitle>
-                    </CardHeader>
-                  </Card>
-                </div>
-
-                <Card>
-                  <CardHeader>
-                    <div className="flex items-center justify-between flex-wrap gap-4">
-                      <div>
-                        <CardTitle>Daftar Tamu</CardTitle>
-                        <CardDescription>
-                          {eventGuests.length} tamu diundang ke acara ini
-                        </CardDescription>
-                      </div>
-                      <div className="flex gap-2 flex-wrap">
-                        <Dialog
-                          open={showAddGuest}
-                          onOpenChange={setShowAddGuest}
-                        >
-                          <DialogTrigger asChild>
-                            <Button>
-                              <UserPlus className="h-4 w-4 mr-2" />
-                              Tambah Tamu Baru
-                            </Button>
-                          </DialogTrigger>
-                          <DialogContent>
-                            <DialogHeader>
-                              <DialogTitle>Tambah Tamu Baru</DialogTitle>
-                              <DialogDescription>
-                                Tambah tamu baru dan undang ke acara ini
-                              </DialogDescription>
-                            </DialogHeader>
-                            <form
-                              onSubmit={handleAddGuest}
-                              className="space-y-4"
-                            >
-                              <div className="space-y-2">
-                                <Label htmlFor="name">Nama *</Label>
-                                <Input
-                                  id="name"
-                                  value={newGuest.name}
-                                  onChange={(e) =>
-                                    setNewGuest({
-                                      ...newGuest,
-                                      name: e.target.value,
-                                    })
-                                  }
-                                  required
-                                />
-                              </div>
-                              <div className="space-y-2">
-                                <Label htmlFor="whatsapp">WhatsApp *</Label>
-                                <Input
-                                  id="whatsapp"
-                                  value={newGuest.whatsapp}
-                                  onChange={(e) =>
-                                    setNewGuest({
-                                      ...newGuest,
-                                      whatsapp: e.target.value,
-                                    })
-                                  }
-                                  required
-                                />
-                              </div>
-                              <div className="space-y-2">
-                                <Label htmlFor="address">Alamat</Label>
-                                <Input
-                                  id="address"
-                                  value={newGuest.address}
-                                  onChange={(e) =>
-                                    setNewGuest({
-                                      ...newGuest,
-                                      address: e.target.value,
-                                    })
-                                  }
-                                />
-                              </div>
-                              <div className="space-y-2">
-                                <Label htmlFor="area">Area (Korda)</Label>
-                                <Input
-                                  id="area"
-                                  value={newGuest.area}
-                                  onChange={(e) =>
-                                    setNewGuest({
-                                      ...newGuest,
-                                      area: e.target.value,
-                                    })
-                                  }
-                                />
-                              </div>
-                              <Button type="submit" className="w-full">
-                                Simpan
-                              </Button>
-                            </form>
-                          </DialogContent>
-                        </Dialog>
-
-                        <Dialog
-                          open={showBulkImport}
-                          onOpenChange={setShowBulkImport}
-                        >
-                          <DialogTrigger asChild>
-                            <Button variant="outline">
-                              <Upload className="h-4 w-4 mr-2" />
-                              Import CSV/Excel
-                            </Button>
-                          </DialogTrigger>
-                          <DialogContent className="max-w-2xl max-h-[80vh] overflow-y-auto">
-                            <DialogHeader>
-                              <DialogTitle>
-                                Import Tamu dari File CSV/Excel
-                              </DialogTitle>
-                              <DialogDescription>
-                                Upload file CSV dengan kolom: nama, whatsapp,
-                                alamat, area
-                              </DialogDescription>
-                            </DialogHeader>
-                            <div className="space-y-4">
-                              <div className="space-y-2">
-                                <Label htmlFor="csvFile">
-                                  File CSV/Excel *
-                                </Label>
-                                <Input
-                                  id="csvFile"
-                                  type="file"
-                                  accept=".csv,.xlsx,.xls"
-                                  onChange={(e) =>
-                                    setImportFile(e.target.files?.[0] || null)
-                                  }
-                                />
-                              </div>
-                              <div className="text-sm text-neutral-600 dark:text-neutral-400">
-                                <p className="font-semibold mb-2">
-                                  Format file CSV:
-                                </p>
-                                <pre className="bg-neutral-100 dark:bg-neutral-800 p-3 rounded text-xs overflow-x-auto">
-                                  {`nama,whatsapp,alamat,area
-                                John Doe,081234567890,Jl. Sudirman No. 1,Jakarta
-                                Jane Smith,081234567891,Jl. Thamrin No. 2,Jakarta`}
-                                </pre>
-                              </div>
-                              {importResults && (
-                                <div className="p-4 bg-neutral-100 dark:bg-neutral-800 rounded-lg">
-                                  <div className="grid grid-cols-3 gap-4 text-center">
-                                    <div>
-                                      <p className="text-2xl font-bold text-green-600">
-                                        {importResults.success}
-                                      </p>
-                                      <p className="text-sm">Berhasil</p>
-                                    </div>
-                                    <div>
-                                      <p className="text-2xl font-bold text-orange-600">
-                                        {importResults.skipped}
-                                      </p>
-                                      <p className="text-sm">Dilewati</p>
-                                    </div>
-                                    <div>
-                                      <p className="text-2xl font-bold text-red-600">
-                                        {importResults.errors}
-                                      </p>
-                                      <p className="text-sm">Error</p>
-                                    </div>
-                                  </div>
-                                </div>
-                              )}
-                              <Button
-                                onClick={handleBulkImport}
-                                disabled={!importFile || importing}
-                                className="w-full"
-                              >
-                                {importing ? "Memproses..." : "Import Data"}
-                              </Button>
-                            </div>
-                          </DialogContent>
-                        </Dialog>
-
-                        <Dialog
-                          open={showAddExistingGuests}
-                          onOpenChange={setShowAddExistingGuests}
-                        >
-                          <DialogTrigger asChild>
-                            <Button variant="outline">
-                              <Users className="h-4 w-4 mr-2" />
-                              Tambah Tamu Database
-                            </Button>
-                          </DialogTrigger>
-                          <DialogContent className="max-w-2xl max-h-[80vh] overflow-y-auto">
-                            <DialogHeader>
-                              <DialogTitle>
-                                Tambah Tamu dari Database
-                              </DialogTitle>
-                              <DialogDescription>
-                                Pilih tamu yang sudah ada di database untuk
-                                diundang ke acara ini
-                              </DialogDescription>
-                            </DialogHeader>
-                            <div className="space-y-4">
-                              <Input
-                                placeholder="Cari tamu berdasarkan nama, WhatsApp, atau area..."
-                                value={searchQuery}
-                                onChange={(e) => setSearchQuery(e.target.value)}
-                              />
-                              <ScrollArea className="h-[300px] border rounded-md">
-                                {filteredGuests.length === 0 ? (
-                                  <div className="p-4 text-center text-neutral-500">
-                                    {allGuests.length === 0
-                                      ? "Belum ada tamu di database"
-                                      : "Tidak ada tamu yang cocok"}
-                                  </div>
-                                ) : (
-                                  <div className="p-2 space-y-2">
-                                    {filteredGuests.map((guest) => (
-                                      <div
-                                        key={guest.id}
-                                        className="flex items-center gap-3 p-3 hover:bg-neutral-100 dark:hover:bg-neutral-800 rounded-lg"
-                                      >
-                                        <Checkbox
-                                          checked={selectedGuests.has(guest.id)}
-                                          onCheckedChange={(checked) => {
-                                            const newSelected = new Set(
-                                              selectedGuests
-                                            );
-                                            if (checked) {
-                                              newSelected.add(guest.id);
-                                            } else {
-                                              newSelected.delete(guest.id);
-                                            }
-                                            setSelectedGuests(newSelected);
-                                          }}
-                                        />
-                                        <div className="flex-1">
-                                          <p className="font-semibold">
-                                            {guest.name}
-                                          </p>
-                                          <p className="text-sm text-neutral-600 dark:text-neutral-400">
-                                            {guest.whatsapp}{" "}
-                                            {guest.area && ` • ${guest.area}`}
-                                          </p>
-                                        </div>
-                                      </div>
-                                    ))}
-                                  </div>
-                                )}
-                              </ScrollArea>
-                              <div className="flex gap-2">
-                                <Button
-                                  onClick={handleAddExistingGuests}
-                                  disabled={
-                                    selectedGuests.size === 0 || addingGuests
-                                  }
-                                  className="flex-1"
-                                >
-                                  {addingGuests
-                                    ? "Memproses..."
-                                    : `Undang ${selectedGuests.size} Tamu`}
-                                </Button>
-                                <Button
-                                  variant="outline"
-                                  onClick={() => {
-                                    setSelectedGuests(new Set());
-                                    setSearchQuery("");
-                                  }}
-                                >
-                                  Reset
-                                </Button>
-                              </div>
-                            </div>
-                          </DialogContent>
-                        </Dialog>
-
-                        <Button variant="outline" onClick={exportToExcel}>
-                          <Download className="h-4 w-4 mr-2" />
-                          Export
-                        </Button>
+              <div className="grid gap-4">
+                {events.map((event) => (
+                  <Card
+                    key={event.id}
+                    className={
+                      selectedEventId === event.id
+                        ? "border-emerald-500 ring-1 ring-emerald-500"
+                        : ""
+                    }
+                  >
+                    <CardHeader>
+                      <div className="flex justify-between items-start">
+                        <div>
+                          <CardTitle>{event.title}</CardTitle>
+                          <CardDescription>
+                            {event.date} • {event.time} • {event.location}
+                          </CardDescription>
+                        </div>
                         <Button
-                          variant="outline"
-                          onClick={() => {
-                            fetchEventGuests();
-                            fetchStats();
-                            fetchAllGuests();
-                          }}
+                          onClick={() => setSelectedEventId(event.id)}
+                          variant={
+                            selectedEventId === event.id ? "default" : "outline"
+                          }
+                          size="sm"
                         >
-                          <RefreshCw className="h-4 w-4" />
+                          {selectedEventId === event.id ? "Aktif" : "Pilih"}
                         </Button>
                       </div>
-                    </div>
-                  </CardHeader>
+                    </CardHeader>
+                  </Card>
+                ))}
+                {events.length === 0 && (
+                  <p className="text-center text-slate-500">
+                    Belum ada acara dibuat.
+                  </p>
+                )}
+              </div>
+            </div>
+          )}
 
-                  {loading ? (
-                    <div className="text-center py-8">
-                      <p>Memuat data...</p>
-                    </div>
-                  ) : eventGuests.length === 0 ? (
-                    <div className="text-center py-8">
-                      <FileText className="h-16 w-16 mx-auto mb-4 text-neutral-400" />
-                      <p className="text-neutral-600 dark:text-neutral-400">
-                        Belum ada tamu yang diundang ke acara ini
-                      </p>
-                      <p className="text-sm text-neutral-500 dark:text-neutral-500 mt-2">
-                        Tambahkan tamu baru atau import dari file CSV/Excel
-                      </p>
-                    </div>
-                  ) : (
-                    <ScrollArea className="h-[600px]">
-                      <Table>
-                        <TableHeader>
-                          <TableRow>
-                            <TableHead>Nama</TableHead>
-                            <TableHead>WhatsApp</TableHead>
-                            <TableHead>Area</TableHead>
-                            <TableHead>RSVP</TableHead>
-                            <TableHead>Status</TableHead>
-                            <TableHead>Aksi</TableHead>
-                          </TableRow>
-                        </TableHeader>
-                        <TableBody>
-                          {eventGuests.map((eventGuest) => (
-                            <TableRow key={eventGuest.id}>
-                              <TableCell className="font-medium">
-                                {eventGuest.guest.name}
-                              </TableCell>
-                              <TableCell>{eventGuest.guest.whatsapp}</TableCell>
-                              <TableCell>
-                                {eventGuest.guest.area || "-"}
-                              </TableCell>
-                              <TableCell>
-                                <Badge
-                                  variant={
-                                    eventGuest.rsvpStatus === "confirmed"
-                                      ? "default"
-                                      : eventGuest.rsvpStatus === "rejected"
-                                      ? "destructive"
-                                      : "secondary"
-                                  }
-                                >
-                                  {eventGuest.rsvpStatus}
-                                </Badge>
-                              </TableCell>
-                              <TableCell>
-                                {eventGuest.attendance ? (
-                                  <Badge
-                                    variant="default"
-                                    className="bg-green-600"
-                                  >
-                                    Hadir{" "}
-                                    {new Date(
-                                      eventGuest.attendance.checkinTime
-                                    ).toLocaleTimeString("id-ID")}
-                                  </Badge>
-                                ) : (
-                                  <Badge variant="secondary">Belum</Badge>
-                                )}
-                              </TableCell>
-                              <TableCell>
-                                <div className="flex gap-2">
-                                  <Button
-                                    size="sm"
-                                    variant="outline"
-                                    onClick={() => generateQrCode(eventGuest)}
-                                  >
-                                    QR
-                                  </Button>
-                                  <Button
-                                    size="sm"
-                                    variant="ghost"
-                                    onClick={() =>
-                                      copyInvitationLink(eventGuest)
-                                    }
-                                  >
-                                    Link
-                                  </Button>
-                                  <Button
-                                    size="sm"
-                                    variant="destructive"
-                                    onClick={() =>
-                                      handleDeleteEventGuest(eventGuest.id)
-                                    }
-                                  >
-                                    Hapus
-                                  </Button>
-                                </div>
-                              </TableCell>
-                            </TableRow>
-                          ))}
-                        </TableBody>
-                      </Table>
-                    </ScrollArea>
-                  )}
-                </Card>
-              </>
-            )}
-          </TabsContent>
-
-          <TabsContent value="history">
+          {/* --- VIEW: HISTORY --- */}
+          {activeTab === "history" && (
             <Card>
               <CardHeader>
                 <CardTitle>Riwayat Acara</CardTitle>
-                <CardDescription>
-                  Daftar semua acara yang pernah dibuat dengan statistik lengkap
-                </CardDescription>
               </CardHeader>
               <CardContent>
                 {loadingHistory ? (
-                  <div className="text-center py-8">
-                    <p>Memuat riwayat acara...</p>
-                  </div>
-                ) : eventHistory.length === 0 ? (
-                  <div className="text-center py-8">
-                    <FileText className="h-16 w-16 mx-auto mb-4 text-neutral-400" />
-                    <p className="text-neutral-600 dark:text-neutral-400">
-                      Belum ada riwayat acara
-                    </p>
-                  </div>
+                  <p className="text-center py-4">Memuat...</p>
                 ) : (
-                  <ScrollArea className="h-[600px]">
+                  <div className="rounded-md border">
                     <Table>
                       <TableHeader>
                         <TableRow>
                           <TableHead>Acara</TableHead>
-                          <TableHead>Tanggal</TableHead>
-                          <TableHead>Jam</TableHead>
-                          <TableHead>Lokasi</TableHead>
-                          <TableHead className="text-center">
-                            Total Tamu
+                          <TableHead className="hidden md:table-cell">
+                            Tanggal
                           </TableHead>
+                          <TableHead className="text-center">Total</TableHead>
                           <TableHead className="text-center">Hadir</TableHead>
-                          <TableHead className="text-center">
-                            Tidak Hadir
-                          </TableHead>
-                          <TableHead className="text-center">
-                            Kehadiran
-                          </TableHead>
-                          <TableHead>Aksi</TableHead>
+                          <TableHead className="text-center">%</TableHead>
+                          <TableHead className="text-right">Aksi</TableHead>
                         </TableRow>
                       </TableHeader>
                       <TableBody>
-                        {eventHistory.map((eventStats) => (
-                          <TableRow key={eventStats.event.id}>
+                        {eventHistory.map((eh) => (
+                          <TableRow key={eh.event.id}>
                             <TableCell className="font-medium">
-                              {eventStats.event.title}
+                              {eh.event.title}
                             </TableCell>
-                            <TableCell>{eventStats.event.date}</TableCell>
-                            <TableCell>{eventStats.event.time}</TableCell>
-                            <TableCell>{eventStats.event.location}</TableCell>
+                            <TableCell className="hidden md:table-cell">
+                              {eh.event.date}
+                            </TableCell>
                             <TableCell className="text-center">
-                              {eventStats.statistics.totalGuests}
+                              {eh.statistics.totalGuests}
                             </TableCell>
                             <TableCell className="text-center">
                               <Badge className="bg-green-600">
-                                {eventStats.statistics.checkedInGuests}
+                                {eh.statistics.checkedInGuests}
                               </Badge>
                             </TableCell>
                             <TableCell className="text-center">
-                              <Badge variant="secondary">
-                                {eventStats.statistics.pendingGuests}
-                              </Badge>
+                              {eh.statistics.attendanceRate}%
                             </TableCell>
-                            <TableCell className="text-center">
-                              <Badge
-                                variant={
-                                  parseFloat(
-                                    eventStats.statistics.attendanceRate
-                                  ) >= 70
-                                    ? "default"
-                                    : parseFloat(
-                                        eventStats.statistics.attendanceRate
-                                      ) >= 50
-                                    ? "secondary"
-                                    : "destructive"
-                                }
-                              >
-                                {eventStats.statistics.attendanceRate}%
-                              </Badge>
-                            </TableCell>
-                            <TableCell>
-                              <div className="flex gap-2">
+                            <TableCell className="text-right">
+                              <div className="flex justify-end gap-2">
                                 <Button
                                   size="sm"
                                   variant="outline"
                                   onClick={() => {
-                                    setSelectedEventDetail(eventStats);
+                                    setSelectedEventDetail(eh);
                                     setShowEventDetail(true);
                                   }}
                                 >
@@ -1255,20 +1272,16 @@ export default function DashboardPage() {
                                 <Button
                                   size="sm"
                                   variant="outline"
-                                  onClick={() =>
-                                    handleExportEventData(eventStats)
-                                  }
+                                  onClick={() => handleExportEventData(eh)}
                                 >
-                                  Export
+                                  <Download className="h-4 w-4" />
                                 </Button>
                                 <Button
                                   size="sm"
                                   variant="destructive"
-                                  onClick={() =>
-                                    handleDeleteEvent(eventStats.event.id)
-                                  }
+                                  onClick={() => handleDeleteEvent(eh.event.id)}
                                 >
-                                  Hapus
+                                  <X className="h-4 w-4" />
                                 </Button>
                               </div>
                             </TableCell>
@@ -1276,305 +1289,318 @@ export default function DashboardPage() {
                         ))}
                       </TableBody>
                     </Table>
-                  </ScrollArea>
+                  </div>
                 )}
               </CardContent>
             </Card>
-          </TabsContent>
-        </Tabs>
+          )}
+        </div>
       </main>
 
+      {/* --- MODALS / DIALOGS (Reused Components) --- */}
+
+      {/* Add Guest Dialog */}
+      <Dialog open={showAddGuest} onOpenChange={setShowAddGuest}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Tambah Tamu Baru</DialogTitle>
+          </DialogHeader>
+          <form onSubmit={handleAddGuest} className="space-y-4">
+            <div className="grid gap-2">
+              <Label>Nama *</Label>
+              <Input
+                required
+                value={newGuest.name}
+                onChange={(e) =>
+                  setNewGuest({ ...newGuest, name: e.target.value })
+                }
+              />
+            </div>
+            <div className="grid gap-2">
+              <Label>WhatsApp *</Label>
+              <Input
+                required
+                value={newGuest.whatsapp}
+                onChange={(e) =>
+                  setNewGuest({ ...newGuest, whatsapp: e.target.value })
+                }
+              />
+            </div>
+            <div className="grid gap-2">
+              <Label>Alamat</Label>
+              <Input
+                value={newGuest.address}
+                onChange={(e) =>
+                  setNewGuest({ ...newGuest, address: e.target.value })
+                }
+              />
+            </div>
+            <div className="grid gap-2">
+              <Label>Area</Label>
+              <Input
+                value={newGuest.area}
+                onChange={(e) =>
+                  setNewGuest({ ...newGuest, area: e.target.value })
+                }
+              />
+            </div>
+            <Button type="submit" className="w-full">
+              Simpan
+            </Button>
+          </form>
+        </DialogContent>
+      </Dialog>
+
+      {/* QR Code Dialog */}
       <Dialog open={showQrDialog} onOpenChange={setShowQrDialog}>
         <DialogContent>
           <DialogHeader>
             <DialogTitle>QR Code Undangan</DialogTitle>
-            <DialogDescription>
-              QR Code untuk {selectedEventGuest?.guest.name}
-            </DialogDescription>
           </DialogHeader>
           {generatingQr ? (
-            <div className="text-center py-8">
-              <p>Generating QR Code...</p>
+            <div className="h-40 flex items-center justify-center">
+              Generating...
             </div>
           ) : selectedEventGuest?.qrCode ? (
-            <div className="space-y-4">
-              <div className="flex justify-center">
-                <img
-                  src={selectedEventGuest.qrCode}
-                  alt="QR Code"
-                  className="border-2 border-neutral-200 dark:border-neutral-700 rounded-lg"
-                />
-              </div>
-              <div className="space-y-2">
-                <p className="text-sm text-neutral-600 dark:text-neutral-400 text-center">
-                  Token:{" "}
-                  <code className="bg-neutral-100 dark:bg-neutral-800 px-2 py-1 rounded">
-                    {selectedEventGuest.token}
-                  </code>
-                </p>
-                <Button
-                  onClick={() => copyInvitationLink(selectedEventGuest!)}
-                  className="w-full"
-                  variant="outline"
-                >
-                  Copy Link Undangan
-                </Button>
-              </div>
+            <div className="space-y-4 flex flex-col items-center">
+              <img
+                src={selectedEventGuest.qrCode}
+                alt="QR"
+                className="border rounded"
+              />
+              <Button
+                onClick={() => copyInvitationLink(selectedEventGuest!)}
+                variant="outline"
+                className="w-full"
+              >
+                Copy Link
+              </Button>
             </div>
           ) : (
-            <div className="text-center py-8">
-              <p className="text-neutral-600 dark:text-neutral-400">
-                QR Code belum digenerate
-              </p>
-            </div>
+            <p>Tidak ada QR Code.</p>
           )}
         </DialogContent>
       </Dialog>
 
+      {/* Bulk Import Dialog */}
+      <Dialog open={showBulkImport} onOpenChange={setShowBulkImport}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Import CSV</DialogTitle>
+          </DialogHeader>
+          <div className="space-y-4">
+            <Input
+              type="file"
+              accept=".csv"
+              onChange={(e) => setImportFile(e.target.files?.[0] || null)}
+            />
+            <div className="text-sm bg-slate-100 p-2 rounded">
+              Format: <code>nama, whatsapp, alamat, area</code>
+            </div>
+            <Button
+              onClick={handleBulkImport}
+              disabled={!importFile || importing}
+              className="w-full"
+            >
+              {importing ? "Proses..." : "Import"}
+            </Button>
+          </div>
+        </DialogContent>
+      </Dialog>
+
+      {/* Add Existing Guest Dialog */}
+      <Dialog
+        open={showAddExistingGuests}
+        onOpenChange={setShowAddExistingGuests}
+      >
+        <DialogContent className="max-w-2xl h-[80vh] flex flex-col">
+          <DialogHeader>
+            <DialogTitle>Tambah dari Database</DialogTitle>
+          </DialogHeader>
+          <div className="space-y-4 flex-1 overflow-hidden flex flex-col">
+            <Input
+              placeholder="Cari nama/wa..."
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+            />
+            {/* Replaced ScrollArea with div and overflow-auto */}
+            <div className="flex-1 border rounded-md overflow-y-auto p-2 space-y-2">
+              {filteredGuests.map((guest) => (
+                <div
+                  key={guest.id}
+                  className="flex items-center gap-3 p-2 hover:bg-slate-100 rounded"
+                >
+                  <Checkbox
+                    checked={selectedGuests.has(guest.id)}
+                    onCheckedChange={(c) => {
+                      const s = new Set(selectedGuests);
+                      c ? s.add(guest.id) : s.delete(guest.id);
+                      setSelectedGuests(s);
+                    }}
+                  />
+                  <div className="flex-1">
+                    <p className="font-medium">{guest.name}</p>
+                    <p className="text-xs text-slate-500">
+                      {guest.whatsapp} • {guest.area}
+                    </p>
+                  </div>
+                </div>
+              ))}
+            </div>
+            <Button
+              onClick={handleAddExistingGuests}
+              disabled={selectedGuests.size === 0 || addingGuests}
+              className="w-full"
+            >
+              {addingGuests
+                ? "Proses..."
+                : `Undang ${selectedGuests.size} Tamu`}
+            </Button>
+          </div>
+        </DialogContent>
+      </Dialog>
+
+      {/* Event Detail Dialog */}
       <Dialog open={showEventDetail} onOpenChange={setShowEventDetail}>
         <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
           {selectedEventDetail && (
             <>
               <DialogHeader>
-                <DialogTitle>
-                  Detail Acara: {selectedEventDetail.event.title}
-                </DialogTitle>
-                <DialogDescription>
-                  Statistik lengkap dan data tamu acara
-                </DialogDescription>
+                <DialogTitle>{selectedEventDetail.event.title}</DialogTitle>
               </DialogHeader>
-
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-6">
+              <div className="space-y-4">
+                <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+                  <div className="bg-blue-50 p-4 rounded">
+                    <p className="text-2xl font-bold">
+                      {selectedEventDetail.statistics.totalGuests}
+                    </p>
+                    <p className="text-xs">Total</p>
+                  </div>
+                  <div className="bg-green-50 p-4 rounded">
+                    <p className="text-2xl font-bold">
+                      {selectedEventDetail.statistics.checkedInGuests}
+                    </p>
+                    <p className="text-xs">Hadir</p>
+                  </div>
+                  <div className="bg-orange-50 p-4 rounded">
+                    <p className="text-2xl font-bold">
+                      {selectedEventDetail.statistics.pendingGuests}
+                    </p>
+                    <p className="text-xs">Tidak Hadir</p>
+                  </div>
+                  <div className="bg-purple-50 p-4 rounded">
+                    <p className="text-2xl font-bold">
+                      {selectedEventDetail.statistics.attendanceRate}%
+                    </p>
+                    <p className="text-xs">Rate</p>
+                  </div>
+                </div>
                 <Card>
-                  <CardHeader className="pb-2">
-                    <CardDescription>Informasi Acara</CardDescription>
+                  <CardHeader>
+                    <CardTitle>Daftar Hadir</CardTitle>
                   </CardHeader>
-                  <CardContent className="space-y-2">
-                    <div>
-                      <p className="text-sm text-neutral-600 dark:text-neutral-400">
-                        Judul
-                      </p>
-                      <p className="font-semibold">
-                        {selectedEventDetail.event.title}
-                      </p>
-                    </div>
-                    <div>
-                      <p className="text-sm text-neutral-600 dark:text-neutral-400">
-                        Tanggal & Waktu
-                      </p>
-                      <p className="font-semibold">
-                        {selectedEventDetail.event.date} -{" "}
-                        {selectedEventDetail.event.time}
-                      </p>
-                    </div>
-                    <div>
-                      <p className="text-sm text-neutral-600 dark:text-neutral-400">
-                        Lokasi
-                      </p>
-                      <p className="font-semibold">
-                        {selectedEventDetail.event.location}
-                      </p>
-                    </div>
-                    {selectedEventDetail.event.description && (
-                      <div>
-                        <p className="text-sm text-neutral-600 dark:text-neutral-400">
-                          Deskripsi
-                        </p>
-                        <p className="font-semibold">
-                          {selectedEventDetail.event.description}
-                        </p>
-                      </div>
-                    )}
-                  </CardContent>
-                </Card>
-
-                <Card>
-                  <CardHeader className="pb-2">
-                    <CardDescription>Statistik Kehadiran</CardDescription>
-                  </CardHeader>
-                  <CardContent className="space-y-4">
-                    <div className="grid grid-cols-2 gap-4">
-                      <div className="text-center p-4 bg-blue-50 dark:bg-blue-900/20 rounded-lg">
-                        <p className="text-3xl font-bold text-blue-600">
-                          {selectedEventDetail.statistics.totalGuests}
-                        </p>
-                        <p className="text-sm text-neutral-600 dark:text-neutral-400">
-                          Total Tamu
-                        </p>
-                      </div>
-                      <div className="text-center p-4 bg-green-50 dark:bg-green-900/20 rounded-lg">
-                        <p className="text-3xl font-bold text-green-600">
-                          {selectedEventDetail.statistics.checkedInGuests}
-                        </p>
-                        <p className="text-sm text-neutral-600 dark:text-neutral-400">
-                          Hadir
-                        </p>
-                      </div>
-                    </div>
-                    <div className="grid grid-cols-2 gap-4">
-                      <div className="text-center p-4 bg-orange-50 dark:bg-orange-900/20 rounded-lg">
-                        <p className="text-3xl font-bold text-orange-600">
-                          {selectedEventDetail.statistics.pendingGuests}
-                        </p>
-                        <p className="text-sm text-neutral-600 dark:text-neutral-400">
-                          Tidak Hadir
-                        </p>
-                      </div>
-                      <div className="text-center p-4 bg-purple-50 dark:bg-purple-900/20 rounded-lg">
-                        <p className="text-3xl font-bold text-purple-600">
-                          {selectedEventDetail.statistics.attendanceRate}%
-                        </p>
-                        <p className="text-sm text-neutral-600 dark:text-neutral-400">
-                          Tingkat Kehadiran
-                        </p>
-                      </div>
-                    </div>
-                    <div className="pt-4 border-t">
-                      <p className="text-sm text-neutral-600 dark:text-neutral-400 mb-2">
-                        Status RSVP
-                      </p>
-                      <div className="grid grid-cols-3 gap-2">
-                        <div className="text-center p-2 bg-green-50 dark:bg-green-900/20 rounded">
-                          <p className="font-bold text-green-600">
-                            {selectedEventDetail.statistics.rsvpConfirmed}
-                          </p>
-                          <p className="text-xs">Confirmed</p>
-                        </div>
-                        <div className="text-center p-2 bg-yellow-50 dark:bg-yellow-900/20 rounded">
-                          <p className="font-bold text-yellow-600">
-                            {selectedEventDetail.statistics.rsvpPending}
-                          </p>
-                          <p className="text-xs">Pending</p>
-                        </div>
-                        <div className="text-center p-2 bg-red-50 dark:bg-red-900/20 rounded">
-                          <p className="font-bold text-red-600">
-                            {selectedEventDetail.statistics.rsvpRejected}
-                          </p>
-                          <p className="text-xs">Rejected</p>
-                        </div>
-                      </div>
+                  <CardContent>
+                    {/* Replaced ScrollArea with div and overflow-auto */}
+                    <div className="h-[300px] overflow-y-auto">
+                      <Table>
+                        <TableHeader>
+                          <TableRow>
+                            <TableHead>Nama</TableHead>
+                            <TableHead>Waktu</TableHead>
+                          </TableRow>
+                        </TableHeader>
+                        <TableBody>
+                          {selectedEventDetail.eventGuests
+                            .filter((eg) => eg.attendance)
+                            .map((eg) => (
+                              <TableRow key={eg.id}>
+                                <TableCell>{eg.guest.name}</TableCell>
+                                <TableCell>
+                                  {/* Added suppressHydrationWarning to fix Date mismatch */}
+                                  <span suppressHydrationWarning>
+                                    {new Date(
+                                      eg.attendance!.checkinTime
+                                    ).toLocaleString("id-ID")}
+                                  </span>
+                                </TableCell>
+                              </TableRow>
+                            ))}
+                        </TableBody>
+                      </Table>
                     </div>
                   </CardContent>
                 </Card>
               </div>
-
-              <Card>
-                <CardHeader>
-                  <CardTitle>Daftar Tamu</CardTitle>
-                  <CardDescription>
-                    {selectedEventDetail.eventGuests.length} tamu di acara ini
-                  </CardDescription>
-                </CardHeader>
-                <CardContent>
-                  <ScrollArea className="h-[400px]">
-                    <Table>
-                      <TableHeader>
-                        <TableRow>
-                          <TableHead>Nama</TableHead>
-                          <TableHead>WhatsApp</TableHead>
-                          <TableHead>Area</TableHead>
-                          <TableHead>RSVP</TableHead>
-                          <TableHead>Status</TableHead>
-                          <TableHead>Waktu Check-in</TableHead>
-                        </TableRow>
-                      </TableHeader>
-                      <TableBody>
-                        {selectedEventDetail.eventGuests.map((eg) => (
-                          <TableRow key={eg.id}>
-                            <TableCell className="font-medium">
-                              {eg.guest.name}
-                            </TableCell>
-                            <TableCell>{eg.guest.whatsapp}</TableCell>
-                            <TableCell>{eg.guest.area || "-"}</TableCell>
-                            <TableCell>
-                              <Badge
-                                variant={
-                                  eg.rsvpStatus === "confirmed"
-                                    ? "default"
-                                    : eg.rsvpStatus === "rejected"
-                                    ? "destructive"
-                                    : "secondary"
-                                }
-                              >
-                                {eg.rsvpStatus}
-                              </Badge>
-                            </TableCell>
-                            <TableCell>
-                              {eg.attendance ? (
-                                <Badge className="bg-green-600">Hadir</Badge>
-                              ) : (
-                                <Badge variant="secondary">Belum</Badge>
-                              )}
-                            </TableCell>
-                            <TableCell>
-                              {eg.attendance
-                                ? new Date(
-                                    eg.attendance.checkinTime
-                                  ).toLocaleString("id-ID")
-                                : "-"}
-                            </TableCell>
-                          </TableRow>
-                        ))}
-                      </TableBody>
-                    </Table>
-                  </ScrollArea>
-                </CardContent>
-              </Card>
-
-              {selectedEventDetail.recentCheckins.length > 0 && (
-                <Card>
-                  <CardHeader>
-                    <CardTitle>Check-in Terbaru</CardTitle>
-                    <CardDescription>
-                      {selectedEventDetail.recentCheckins.length} check-in
-                      terakhir
-                    </CardDescription>
-                  </CardHeader>
-                  <CardContent>
-                    <ScrollArea className="h-[200px]">
-                      <div className="space-y-2">
-                        {selectedEventDetail.recentCheckins.map(
-                          (attendance) => (
-                            <div
-                              key={attendance.id}
-                              className="flex items-center justify-between p-3 bg-neutral-50 dark:bg-neutral-800 rounded-lg"
-                            >
-                              <div>
-                                <p className="font-semibold">
-                                  {attendance.eventGuest.guest.name}
-                                </p>
-                                <p className="text-sm text-neutral-600 dark:text-neutral-400">
-                                  {attendance.eventGuest.guest.area &&
-                                    `Area: ${attendance.eventGuest.guest.area}`}
-                                </p>
-                              </div>
-                              <div className="text-right">
-                                <p className="font-semibold">
-                                  {new Date(
-                                    attendance.checkinTime
-                                  ).toLocaleString("id-ID")}
-                                </p>
-                              </div>
-                            </div>
-                          )
-                        )}
-                      </div>
-                    </ScrollArea>
-                  </CardContent>
-                </Card>
-              )}
             </>
           )}
         </DialogContent>
       </Dialog>
-
-      <footer className="border-t bg-white/50 dark:bg-neutral-950/50 backdrop-blur-sm mt-auto">
-        <div className="container mx-auto px-4 py-6">
-          <p className="text-center text-sm text-neutral-600 dark:text-neutral-400">
-            © 2025 E-Invitation System - Dashboard Admin
-          </p>
-        </div>
-      </footer>
     </div>
+  );
+}
+
+// --- Sub Components for cleaner code ---
+
+function StatCard({
+  title,
+  value,
+  icon,
+  color,
+}: {
+  title: string;
+  value: number;
+  icon: React.ReactNode;
+  color: string;
+}) {
+  return (
+    <Card
+      className={`${
+        color === "blue"
+          ? "border-blue-100"
+          : color === "green"
+          ? "border-green-100"
+          : color === "orange"
+          ? "border-orange-100"
+          : "border-purple-100"
+      }`}
+    >
+      <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+        <CardTitle className="text-sm font-medium">{title}</CardTitle>
+        {icon}
+      </CardHeader>
+      <CardContent>
+        <div className="text-2xl font-bold">{value}</div>
+      </CardContent>
+    </Card>
+  );
+}
+
+function NavButton({
+  label,
+  icon,
+  active,
+  onClick,
+  variant,
+}: {
+  label: string;
+  icon: React.ReactNode;
+  active?: boolean;
+  onClick: () => void;
+  variant?: "default" | "destructive";
+}) {
+  return (
+    <button
+      onClick={onClick}
+      className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition-all ${
+        active && variant !== "destructive"
+          ? "bg-emerald-50 text-emerald-700"
+          : active && variant === "destructive"
+          ? "bg-red-50 text-red-700"
+          : "text-slate-600 hover:bg-slate-50 hover:text-slate-900"
+      }`}
+    >
+      {icon}
+      {label}
+    </button>
   );
 }
