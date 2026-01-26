@@ -4,7 +4,7 @@ import { useState, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
-import { QrCode, Scan, ShieldCheck, User } from 'lucide-react'
+import { QrCode, ShieldCheck } from 'lucide-react'
 
 export default function Home() {
   const router = useRouter()
@@ -17,34 +17,24 @@ export default function Home() {
   }, [])
 
   return (
-    <div className="min-h-screen bg-gradient-to-b from-neutral-50 to-neutral-100 dark:from-neutral-950 dark:to-neutral-900">
+    <div className="min-h-screen bg-gradient-to-b from-green-50 to-white dark:from-neutral-950 dark:to-neutral-900">
       {/* Header */}
-      <header className="border-b bg-white/50 dark:bg-neutral-950/50 backdrop-blur-sm">
-        <div className="container mx-auto px-4 py-4">
-          <div className="flex items-center justify-between">
-            <div className="flex items-center gap-2">
-              <QrCode className="h-8 w-8 text-neutral-900 dark:text-neutral-50" />
-              <h1 className="text-2xl font-bold text-neutral-900 dark:text-neutral-50">
-                E-Invitation
-              </h1>
+      <header className="border-b bg-white/80 dark:bg-neutral-950/80 backdrop-blur-sm">
+        <div className="container mx-auto px-4 py-6">
+          <div className="flex items-center justify-center">
+            <div className="flex items-center gap-3">
+              <div className="w-14 h-14 rounded-full bg-gradient-to-br from-green-600 to-green-700 flex items-center justify-center shadow-lg">
+                <QrCode className="h-7 w-7 text-white" />
+              </div>
+              <div className="text-center">
+                <h1 className="text-2xl font-bold text-neutral-900 dark:text-neutral-50">
+                  Majelis Khirriji Al-Haromain
+                </h1>
+                <p className="text-sm text-green-700 dark:text-green-500 font-semibold">
+                  Riyadlul Jannah
+                </p>
+              </div>
             </div>
-            {isAuthenticated ? (
-              <Button
-                onClick={() => router.push('/admin/dashboard')}
-                variant="default"
-              >
-                <User className="h-4 w-4 mr-2" />
-                Dashboard
-              </Button>
-            ) : (
-              <Button
-                onClick={() => router.push('/admin/login')}
-                variant="outline"
-              >
-                <ShieldCheck className="h-4 w-4 mr-2" />
-                Login Admin
-              </Button>
-            )}
           </div>
         </div>
       </header>
@@ -52,53 +42,37 @@ export default function Home() {
       {/* Hero Section */}
       <main className="container mx-auto px-4 py-16">
         <div className="text-center mb-16">
+          <div className="flex justify-center mb-8">
+            <div className="w-36 h-36 rounded-full bg-gradient-to-br from-green-600 via-green-700 to-green-800 flex items-center justify-center shadow-2xl">
+              <QrCode className="h-20 w-20 text-white" />
+            </div>
+          </div>
           <h2 className="text-4xl md:text-5xl font-bold mb-4 text-neutral-900 dark:text-neutral-50">
-            Sistem Undangan Digital dengan QR Code
+            Sistem Undangan Digital
           </h2>
           <p className="text-xl text-neutral-600 dark:text-neutral-400 max-w-2xl mx-auto">
-            Manajemen tamu profesional dengan QR Code unik untuk setiap undangan
+            Majelis Khirriji Al-Haromain - Riyadlul Jannah
           </p>
         </div>
 
         {/* Feature Cards */}
-        <div className="grid md:grid-cols-3 gap-6 max-w-5xl mx-auto">
-          <Card className="border-2 hover:border-neutral-400 transition-colors">
+        <div className="grid md:grid-cols-2 gap-8 max-w-4xl mx-auto">
+          <Card className="border-2 border-green-200 hover:border-green-500 hover:shadow-xl transition-all">
             <CardHeader>
-              <div className="w-12 h-12 bg-neutral-100 dark:bg-neutral-800 rounded-lg flex items-center justify-center mb-4">
-                <ShieldCheck className="h-6 w-6 text-neutral-900 dark:text-neutral-50" />
+              <div className="w-14 h-14 bg-gradient-to-br from-green-600 to-green-700 rounded-lg flex items-center justify-center mb-4 shadow-md">
+                <QrCode className="h-7 w-7 text-white" />
               </div>
-              <CardTitle>Admin Dashboard</CardTitle>
-              <CardDescription>
-                Kelola tamu, acara, dan pantau kehadiran secara real-time
-              </CardDescription>
-            </CardHeader>
-            <CardContent>
-              <Button
-                onClick={() => router.push('/admin/login')}
-                className="w-full"
-                variant={isAuthenticated ? "default" : "outline"}
-              >
-                {isAuthenticated ? 'Buka Dashboard' : 'Login Admin'}
-              </Button>
-            </CardContent>
-          </Card>
-
-          <Card className="border-2 hover:border-neutral-400 transition-colors">
-            <CardHeader>
-              <div className="w-12 h-12 bg-neutral-100 dark:bg-neutral-800 rounded-lg flex items-center justify-center mb-4">
-                <QrCode className="h-6 w-6 text-neutral-900 dark:text-neutral-50" />
-              </div>
-              <CardTitle>Undangan Digital</CardTitle>
-              <CardDescription>
+              <CardTitle className="text-xl">Undangan Digital</CardTitle>
+              <CardDescription className="text-base">
                 Akses undangan personal dengan QR Code unik
               </CardDescription>
             </CardHeader>
             <CardContent>
-              <div className="space-y-2">
+              <div className="space-y-3">
                 <input
                   type="text"
                   placeholder="Masukkan token undangan"
-                  className="w-full px-3 py-2 border rounded-md text-sm"
+                  className="w-full px-4 py-3 border-2 border-neutral-200 rounded-lg text-sm focus:border-green-500 focus:outline-none transition-colors"
                   id="invitationToken"
                 />
                 <Button
@@ -108,8 +82,7 @@ export default function Home() {
                       router.push(`/invitation?id=${token.value}`)
                     }
                   }}
-                  className="w-full"
-                  variant="outline"
+                  className="w-full bg-gradient-to-r from-green-600 to-green-700 hover:from-green-700 hover:to-green-800 text-white py-3 text-base font-semibold shadow-md"
                 >
                   Buka Undangan
                 </Button>
@@ -117,77 +90,65 @@ export default function Home() {
             </CardContent>
           </Card>
 
-          <Card className="border-2 hover:border-neutral-400 transition-colors">
+          <Card className="border-2 border-green-200 hover:border-green-500 hover:shadow-xl transition-all">
             <CardHeader>
-              <div className="w-12 h-12 bg-neutral-100 dark:bg-neutral-800 rounded-lg flex items-center justify-center mb-4">
-                <Scan className="h-6 w-6 text-neutral-900 dark:text-neutral-50" />
+              <div className="w-14 h-14 bg-gradient-to-br from-green-600 to-green-700 rounded-lg flex items-center justify-center mb-4 shadow-md">
+                <ShieldCheck className="h-7 w-7 text-white" />
               </div>
-              <CardTitle>QR Scanner</CardTitle>
-              <CardDescription>
-                Scan QR Code untuk check-in tamu dengan kamera HP
+              <CardTitle className="text-xl">Admin Dashboard</CardTitle>
+              <CardDescription className="text-base">
+                Kelola tamu dan pantau kehadiran acara
               </CardDescription>
             </CardHeader>
             <CardContent>
               <Button
-                onClick={() => router.push('/scanner')}
-                className="w-full"
+                onClick={() => router.push('/admin/login')}
+                className="w-full py-3 text-base font-semibold"
                 variant="outline"
               >
-                <Scan className="h-4 w-4 mr-2" />
-                Buka Scanner
+                {isAuthenticated ? 'Buka Dashboard' : 'Login Admin'}
               </Button>
             </CardContent>
           </Card>
         </div>
 
         {/* Info Section */}
-        <div className="mt-16 max-w-3xl mx-auto">
-          <Card>
-            <CardHeader>
-              <CardTitle>Cara Menggunakan</CardTitle>
+        <div className="mt-20 max-w-3xl mx-auto">
+          <Card className="border-2 border-green-200 dark:border-green-900 shadow-lg">
+            <CardHeader className="text-center pb-6">
+              <CardTitle className="text-3xl text-green-800 dark:text-green-500">Cara Menggunakan</CardTitle>
             </CardHeader>
-            <CardContent className="space-y-4">
+            <CardContent className="space-y-6">
               <div className="flex gap-4">
-                <div className="flex-shrink-0 w-8 h-8 bg-neutral-900 dark:bg-neutral-50 text-white dark:text-neutral-900 rounded-full flex items-center justify-center font-bold">
+                <div className="flex-shrink-0 w-10 h-10 bg-gradient-to-br from-green-600 to-green-700 text-white rounded-full flex items-center justify-center font-bold text-lg shadow-md">
                   1
                 </div>
                 <div>
-                  <h4 className="font-semibold mb-1">Login sebagai Admin</h4>
+                  <h4 className="font-semibold mb-2 text-lg">Buka Undangan Digital</h4>
                   <p className="text-sm text-neutral-600 dark:text-neutral-400">
-                    Gunakan username dan password untuk mengakses dashboard
+                    Masukkan token undangan yang diterima untuk melihat detail acara
                   </p>
                 </div>
               </div>
               <div className="flex gap-4">
-                <div className="flex-shrink-0 w-8 h-8 bg-neutral-900 dark:bg-neutral-50 text-white dark:text-neutral-900 rounded-full flex items-center justify-center font-bold">
+                <div className="flex-shrink-0 w-10 h-10 bg-gradient-to-br from-green-600 to-green-700 text-white rounded-full flex items-center justify-center font-bold text-lg shadow-md">
                   2
                 </div>
                 <div>
-                  <h4 className="font-semibold mb-1">Tambahkan Tamu</h4>
+                  <h4 className="font-semibold mb-2 text-lg">Konfirmasi Kehadiran</h4>
                   <p className="text-sm text-neutral-600 dark:text-neutral-400">
-                    Input data tamu, sistem akan otomatis generate QR Code unik
+                    Isi formulir konfirmasi kehadiran pada halaman undangan
                   </p>
                 </div>
               </div>
               <div className="flex gap-4">
-                <div className="flex-shrink-0 w-8 h-8 bg-neutral-900 dark:bg-neutral-50 text-white dark:text-neutral-900 rounded-full flex items-center justify-center font-bold">
+                <div className="flex-shrink-0 w-10 h-10 bg-gradient-to-br from-green-600 to-green-700 text-white rounded-full flex items-center justify-center font-bold text-lg shadow-md">
                   3
                 </div>
                 <div>
-                  <h4 className="font-semibold mb-1">Kirim Undangan</h4>
+                  <h4 className="font-semibold mb-2 text-lg">Simpan QR Code</h4>
                   <p className="text-sm text-neutral-600 dark:text-neutral-400">
-                    Bagikan link undangan beserta QR Code kepada tamu
-                  </p>
-                </div>
-              </div>
-              <div className="flex gap-4">
-                <div className="flex-shrink-0 w-8 h-8 bg-neutral-900 dark:bg-neutral-50 text-white dark:text-neutral-900 rounded-full flex items-center justify-center font-bold">
-                  4
-                </div>
-                <div>
-                  <h4 className="font-semibold mb-1">Scan QR Code</h4>
-                  <p className="text-sm text-neutral-600 dark:text-neutral-400">
-                    Gunakan QR Scanner untuk check-in tamu saat acara
+                    Download dan simpan QR Code untuk check-in saat acara berlangsung
                   </p>
                 </div>
               </div>
@@ -197,10 +158,10 @@ export default function Home() {
       </main>
 
       {/* Footer */}
-      <footer className="border-t bg-white/50 dark:bg-neutral-950/50 backdrop-blur-sm mt-auto">
-        <div className="container mx-auto px-4 py-6">
+      <footer className="border-t bg-white/80 dark:bg-neutral-950/80 backdrop-blur-sm mt-16">
+        <div className="container mx-auto px-4 py-8">
           <p className="text-center text-sm text-neutral-600 dark:text-neutral-400">
-            © 2025 E-Invitation System. Sistem undangan digital dengan QR Code.
+            © 2025 Majelis Khirriji Al-Haromain - Riyadlul Jannah
           </p>
         </div>
       </footer>
